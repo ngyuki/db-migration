@@ -1,0 +1,35 @@
+<?php
+use Doctrine\DBAL\Tools\Console\ConsoleRunner;
+use Doctrine\DBAL\DriverManager;
+
+// ===== start migration cli-config =====
+
+// add dbal subcommand
+$commands[] = $migrateCommand = new \ryunosuke\DbMigration\Console\Command\MigrateCommand();
+
+// register pre migration procedure
+$migrateCommand->setPreMigration(function ($connection)
+{
+    // disable foreign key. (for mysql)
+    // $connection->exec('SET FOREIGN_KEY_CHECKS = 0');
+});
+
+// register post migration procedure
+$migrateCommand->setPostMigration(function ($connection)
+{
+    // enable foreign key. (for mysql)
+    // $connection->exec('SET FOREIGN_KEY_CHECKS = 1');
+});
+
+// ===== start original cli-config =====
+
+$config = array(
+    'driver' => 'pdo_mysql',
+    'host' => 'localhost',
+    'dbname' => 'test_demo_migration',
+    'user' => 'demo',
+    'password' => '',
+    'charset' => 'utf8'
+);
+
+return ConsoleRunner::createHelperSet(DriverManager::getConnection($config));
