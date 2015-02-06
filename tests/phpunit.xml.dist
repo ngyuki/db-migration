@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.github.com/sebastianbergmann/phpunit/master/phpunit.xsd" bootstrap="bootstrap.php">
+	<php>
+		<var name="old_db_type" value="pdo_mysql" />
+		<var name="old_db_host" value="localhost" />
+		<var name="old_db_username" value="root" />
+		<var name="old_db_password" value="" />
+		<var name="old_db_name" value="migration_tests_old" />
+		<var name="old_db_port" value="3306" />
+		
+		<var name="new_db_type" value="pdo_mysql" />
+		<var name="new_db_host" value="localhost" />
+		<var name="new_db_username" value="root" />
+		<var name="new_db_password" value="" />
+		<var name="new_db_name" value="migration_tests_new" />
+		<var name="new_db_port" value="3306" />
+	</php>
+
+	<filter>
+		<whitelist>
+			<directory suffix=".php">../src/</directory>
+		</whitelist>
+	</filter>
+
+	<logging>
+		<log type="coverage-html" target="./report" />
+	</logging>
+</phpunit>
