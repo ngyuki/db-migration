@@ -1,0 +1,29 @@
+{
+    "name": "ryunosuke/db-migration",
+    "type": "library",
+    "description": "Database Migration Commands",
+    "keywords": ["ryunosuke", "library", "migration", "database", "doctrine"],
+    "homepage": "https://github.com/arima-ryunosuke/db-migration",
+    "license": "MIT",
+    "authors": [
+        { "name": "ryunosuke", "email": "ryunosuke.arima@gmail.com" }
+    ],
+    "autoload": {
+        "psr-4": {
+            "ryunosuke\\DbMigration\\": "src/DbMigration/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ryunosuke\\Test\\DbMigration\\": "tests/DbMigration"
+        }
+    },
+    "require": {
+        "php": ">=5.3",
+        "doctrine/dbal": "*",
+        "symfony/console": "2.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.*"
+    }
+}
