@@ -8,6 +8,12 @@
     "authors": [
         { "name": "ryunosuke", "email": "ryunosuke.arima@gmail.com" }
     ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/arima-ryunosuke/dbal"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "ryunosuke\\DbMigration\\": "src/DbMigration/"
@@ -20,7 +26,8 @@
     },
     "require": {
         "php": ">=5.3",
-        "doctrine/dbal": "*",
+        "doctrine/dbal": "dev-master",
+        "doctrine/dbal": "dev-specialized/mysql",
         "symfony/console": "2.*"
     },
     "require-dev": {
