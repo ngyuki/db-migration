@@ -192,7 +192,6 @@ class MigrateCommandTest extends AbstractTestCase
             )
         ));
         
-        $this->assertContains('ALTER TABLE igntable', $result);
         $this->assertNotContains('DELETE FROM `migtable`', $result);
         $this->assertNotContains('INSERT INTO `migtable`', $result);
         $this->assertNotContains('UPDATE `migtable` SET', $result);

@@ -109,11 +109,13 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 
 ### --include, --exclude
 
+差分対象テーブルを指定します。正規表現です。
+
 評価順位は `include` -> `exclude` です。`exclude` で指定したテーブルが出力されることはありません。
 なお、`include` 未指定時はすべてのテーブルが対象になります。
 
-このオプションは **DML のみに適用**されます。
-ALTER 文などの DDL は普通に出力されます。
+このオプションは特別なことをしない限り **DML のみに適用**されます。
+ALTER 文などの DDL は普通に出力されます（後述参照）。
 
 ### --where (-w)
 
@@ -157,6 +159,7 @@ $ # sh vendor/ryunosuke/db-migration/demo/run.sh
 `doctrine` に依存しており、最新版を使用します。
 mysql に特化した[拙作の fork リポジトリ](https://github.com/arima-ryunosuke/dbal)があるので良かったら使って下さい。下記のような変更を加えています。
 
+* DDL 差分でテーブルを指定できるように
 * TEXT 型を変更したら差分が出るように
 * カラム追加時に FIRST/AFTER を付加するように
 * Table Option (ストレージエンジンとか、テーブルコメントとか)の変更差分を出力するように
