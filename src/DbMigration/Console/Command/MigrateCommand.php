@@ -250,12 +250,15 @@ EOT
         $autoyes = $dryrun || $input->getOption('no-interaction');
         $force = $input->getOption('force');
         
+        $includes = (array) $input->getOption('include');
+        $excludes = (array) $input->getOption('exclude');
+        
         $dialog = new DialogHelper();
         
         $output->writeln("-- <comment>diff DDL</comment>");
         
         // get ddl
-        $sqls = Generator::getDDL($srcConn, $dstConn);
+        $sqls = Generator::getDDL($srcConn, $dstConn, $includes, $excludes);
         if (! $sqls) {
             $output->writeln("-- no diff schema.");
             return;

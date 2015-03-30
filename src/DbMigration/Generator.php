@@ -13,14 +13,24 @@ class Generator
      *
      * @param Connection $old
      * @param Connection $new
+     * @param array $includes
+     * @param array $excludes
      * @return array
      */
-    static public function getDDL($old, $new)
+    static public function getDDL($old, $new, $includes = array(), $excludes = array())
     {
         $platform = $old->getDatabasePlatform();
         $fromSchema = $old->getSchemaManager()->createSchema();
         $toSchema = $new->getSchemaManager()->createSchema();
-        return $fromSchema->getMigrateToSql($toSchema, $platform);
+        $diff = Comparator::compareSchemas($fromSchema, $toSchema);
+        
+        // @codeCoverageIgnoreStart
+        if (method_exists($diff, 'toFilterSql')) {
+            return $diff->toFilterSql($platform, $includes, $excludes);
+        } else {
+            return $diff->toSql($platform);
+        }
+        // @codeCoverageIgnoreEnd
     }
 
     /**
