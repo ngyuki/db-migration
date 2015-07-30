@@ -191,6 +191,7 @@ EOT
             // create destination database if not exists
             if (! $existsDstDb) {
                 $schemer->createDatabase($dstName);
+                $this->doCallback(1, $dstConn);
                 
                 // import sql files from argument
                 foreach ($files as $filename) {
@@ -206,6 +207,8 @@ EOT
                 }
                 
                 $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
+            } else {
+                $this->doCallback(1, $dstConn);
             }
         }
         
@@ -238,6 +241,8 @@ EOT
                 }
             }
         }
+        
+        $this->doCallback(9, $dstConn);
     }
 
     private function migrateDDL(Connection $srcConn, Connection $dstConn, InputInterface $input, OutputInterface $output)
