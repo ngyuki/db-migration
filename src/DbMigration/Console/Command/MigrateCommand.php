@@ -19,13 +19,17 @@ class MigrateCommand extends Command
 
     private $postMigration = null;
 
-    public function setPreMigration(callable $callback)
+    public function setPreMigration($callback)
     {
+        ASSERT('is_callable($callback)');
+        
         $this->preMigration = $callback;
     }
 
-    public function setPostMigration(callable $callback)
+    public function setPostMigration($callback)
     {
+        ASSERT('is_callable($callback)');
+        
         $this->postMigration = $callback;
     }
 
