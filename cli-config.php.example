@@ -25,7 +25,7 @@ $migrateCommand->setPostMigration(function ($connection)
 
 $config = array(
     'driver' => 'pdo_mysql',
-    'host' => 'localhost',
+    'host' => '127.0.0.1',
     'dbname' => 'test_demo_migration',
     'user' => 'demo',
     'password' => '',
