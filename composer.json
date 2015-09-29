@@ -26,8 +26,7 @@
     },
     "require": {
         "php": ">=5.3",
-        "doctrine/dbal": "dev-master",
-        "doctrine/dbal": "dev-specialized/mysql",
+        "doctrine/dbal": "*",
         "symfony/console": "2.*"
     },
     "require-dev": {
