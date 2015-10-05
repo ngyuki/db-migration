@@ -8,12 +8,6 @@
     "authors": [
         { "name": "ryunosuke", "email": "ryunosuke.arima@gmail.com" }
     ],
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/arima-ryunosuke/dbal"
-        }
-    ],
     "autoload": {
         "psr-4": {
             "ryunosuke\\DbMigration\\": "src/DbMigration/"
