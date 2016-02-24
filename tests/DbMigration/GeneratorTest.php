@@ -98,24 +98,14 @@ class GeneratorTest extends AbstractTestCase
      */
     function migrate_dml()
     {
-        $dmls = $this->getDML($this->old, $this->new, array(
-            '1' => array(
-                'foo',
-                'foo'
-            )
-        ));
+        $dmls = $this->getDML($this->old, $this->new, array('foo' =>'1'));
         $this->assertCount(10, $dmls);
         
         foreach ($dmls as $sql) {
             $this->old->exec($sql);
         }
-        
-        $dmls = $this->getDML($this->old, $this->new, array(
-            '1' => array(
-                'foo',
-                'foo'
-            )
-        ));
+
+        $dmls = $this->getDML($this->old, $this->new, array('foo' =>'1'));
         $this->assertCount(0, $dmls);
     }
 
@@ -124,12 +114,7 @@ class GeneratorTest extends AbstractTestCase
      */
     function migrate_dml_where()
     {
-        $dmls = $this->getDML($this->old, $this->new, array(
-            'id = -1' => array(
-                'foo',
-                'foo'
-            )
-        ));
+        $dmls = $this->getDML($this->old, $this->new, array('foo' => 'id = -1'));
         $this->assertCount(1, $dmls);
     }
 
@@ -140,19 +125,7 @@ class GeneratorTest extends AbstractTestCase
     {
         $e = new SchemaException("There is no table with name", SchemaException::TABLE_DOESNT_EXIST);
         
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'notable',
-                'fuga'
-            )
-        ));
-        
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'hoge',
-                'notable'
-            )
-        ));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, array('notable' => '1'));
     }
 
     /**
@@ -162,19 +135,7 @@ class GeneratorTest extends AbstractTestCase
     {
         $e = new MigrationException("has no primary key");
         
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'nopkey',
-                'fuga'
-            )
-        ));
-        
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'hoge',
-                'nopkey'
-            )
-        ));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, array('nopkey' => '1'));
     }
 
     /**
@@ -183,26 +144,9 @@ class GeneratorTest extends AbstractTestCase
     function migrate_dml_equals()
     {
         $e = new MigrationException("has different definition");
-        
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'diffpkey',
-                'diffpkey'
-            )
-        ));
-        
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'diffcolumn',
-                'diffcolumn'
-            )
-        ));
-        
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array(
-            '1' => array(
-                'difftype',
-                'difftype'
-            )
-        ));
+
+        $this->assertException($e, $this->getDML, $this->old, $this->new, array('diffpkey' => '1'));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, array('diffcolumn' => '1'));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, array('difftype' => '1'));
     }
 }

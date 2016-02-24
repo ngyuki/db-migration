@@ -57,6 +57,9 @@ class TableScannerTest extends AbstractTestCase
         
         $condition = $this->invoke('parseCondition', '`id` = 1', '`');
         $this->assertEquals('`id` = 1', $condition);
+
+        $condition = $this->invoke('parseCondition', array('`id` > 1', '`id` < 10'), '`');
+        $this->assertEquals('`id` > 1 AND `id` < 10', $condition);
     }
 
     /**

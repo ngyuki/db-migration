@@ -64,10 +64,10 @@ class Generator
         $dmls = array();
         
         // loop for table
-        foreach ($tables as $cond => $table_pair) {
+        foreach ($tables as $table => $conds) {
             // scanner objects
-            $oldScanner = new TableScanner($old, $oldSchema->getTable($table_pair[0]), $cond);
-            $newScanner = new TableScanner($new, $newSchema->getTable($table_pair[1]), $cond);
+            $oldScanner = new TableScanner($old, $oldSchema->getTable($table), $conds);
+            $newScanner = new TableScanner($new, $newSchema->getTable($table), $conds);
             
             // check different column definitation
             if (! $oldScanner->equals($newScanner)) {

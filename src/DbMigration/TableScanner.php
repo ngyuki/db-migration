@@ -64,7 +64,7 @@ class TableScanner
      *
      * @param Connection $conn
      * @param Table $table
-     * @param string $filterCondition
+     * @param array $filterCondition
      */
     public function __construct(Connection $conn, Table $table, $filterCondition)
     {
@@ -289,29 +289,36 @@ class TableScanner
         return $this->conn->query($sql);
     }
 
-    private function parseCondition($cond, $icharactor)
+    private function parseCondition($conds, $icharactor)
     {
         $identifier = "$icharactor?([_a-z][_a-z0-9]*)$icharactor?";
         $tableName = $this->table->getName();
-        
-        if (preg_match_all("/($identifier\\.)?$identifier/i", $cond, $matches)) {
-            $result = array();
-            foreach ($matches[0] as $i => $dummy) {
-                $key = $matches[2][$i];
-                $val = $matches[3][$i];
-                
-                $key = $key === '' ? $tableName : $key;
-                
-                $result[$key][] = $val;
-            }
-            
-            if (array_key_exists($tableName, $result)) {
-                foreach ($this->table->getColumns() as $columnName => $column) {
-                    if (in_array($columnName, $result[$tableName])) {
-                        return $cond;
+
+        $wheres = array();
+        foreach ((array) $conds as $cond) {
+            if (preg_match_all("/($identifier\\.)?$identifier/i", $cond, $matches)) {
+                $result = array();
+                foreach ($matches[0] as $i => $dummy) {
+                    $key = $matches[2][$i];
+                    $val = $matches[3][$i];
+
+                    $key = $key === '' ? $tableName : $key;
+
+                    $result[$key][] = $val;
+                }
+
+                if (array_key_exists($tableName, $result)) {
+                    foreach ($this->table->getColumns() as $columnName => $column) {
+                        if (in_array($columnName, $result[$tableName])) {
+                            $wheres[] = $cond;
+                        }
                     }
                 }
             }
+        }
+
+        if ($wheres) {
+            return implode(' AND ', $wheres);
         }
         
         return 'TRUE';
