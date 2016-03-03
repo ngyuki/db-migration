@@ -39,11 +39,13 @@ class Generator
      *
      * @param Connection $old
      * @param Connection $new
-     * @param array $tables
+     * @param string $table
+     * @param array $wheres
+     * @param array $ignores
      * @throws DBALException
      * @return array
      */
-    static public function getDML($old, $new, $tables)
+    static public function getDML($old, $new, $table, array $wheres = array(), array $ignores = array())
     {
         /** @var Schema[] $schemaCache */
         static $schemaCache = array();
@@ -64,36 +66,33 @@ class Generator
         
         // result dmls
         $dmls = array();
-        
-        // loop for table
-        foreach ($tables as $table => $conds) {
-            // scanner objects
-            $oldScanner = new TableScanner($old, $oldSchema->getTable($table), $conds);
-            $newScanner = new TableScanner($new, $newSchema->getTable($table), $conds);
-            
-            // check different column definitation
-            if (!$oldScanner->equals($newScanner)) {
-                throw new MigrationException("has different definition between schema.");
-            }
-            
-            // primary key tuples
-            $oldTuples = $oldScanner->getPrimaryRows();
-            $newTuples = $newScanner->getPrimaryRows();
-            
-            // DELETE if old only
-            if ($tuples = array_diff_key($oldTuples, $newTuples)) {
-                $dmls = array_merge($dmls, $oldScanner->getDeleteSql($tuples, $oldScanner));
-            }
-            
-            // UPDATE if common
-            if ($tuples = array_intersect_key($oldTuples, $newTuples)) {
-                $dmls = array_merge($dmls, $oldScanner->getUpdateSql($tuples, $newScanner));
-            }
-            
-            // INSERT if new only
-            if ($tuples = array_diff_key($newTuples, $oldTuples)) {
-                $dmls = array_merge($dmls, $oldScanner->getInsertSql($tuples, $newScanner));
-            }
+
+        // scanner objects
+        $oldScanner = new TableScanner($old, $oldSchema->getTable($table), $wheres, $ignores);
+        $newScanner = new TableScanner($new, $newSchema->getTable($table), $wheres, $ignores);
+
+        // check different column definitation
+        if (!$oldScanner->equals($newScanner)) {
+            throw new MigrationException("has different definition between schema.");
+        }
+
+        // primary key tuples
+        $oldTuples = $oldScanner->getPrimaryRows();
+        $newTuples = $newScanner->getPrimaryRows();
+
+        // DELETE if old only
+        if ($tuples = array_diff_key($oldTuples, $newTuples)) {
+            $dmls = array_merge($dmls, $oldScanner->getDeleteSql($tuples, $oldScanner));
+        }
+
+        // UPDATE if common
+        if ($tuples = array_intersect_key($oldTuples, $newTuples)) {
+            $dmls = array_merge($dmls, $oldScanner->getUpdateSql($tuples, $newScanner));
+        }
+
+        // INSERT if new only
+        if ($tuples = array_diff_key($newTuples, $oldTuples)) {
+            $dmls = array_merge($dmls, $oldScanner->getInsertSql($tuples, $newScanner));
         }
         
         return $dmls;

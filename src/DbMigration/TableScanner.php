@@ -49,6 +49,11 @@ class TableScanner
     private $columns;
 
     /**
+     * @var string[]
+     */
+    private $ignoreColumns;
+
+    /**
      * @var string
      */
     private $primaryKeyString;
@@ -64,12 +69,15 @@ class TableScanner
      * @param Connection $conn
      * @param Table $table
      * @param array $filterCondition
+     * @param array $ignoreColumn
      */
-    public function __construct(Connection $conn, Table $table, $filterCondition)
+    public function __construct(Connection $conn, Table $table, $filterCondition, $ignoreColumn = array())
     {
         if (!$table->hasPrimaryKey()) {
             throw new MigrationException("has no primary key.");
         }
+
+        $ichar = $conn->getDatabasePlatform()->getIdentifierQuoteCharacter();
         
         // set property from argument
         $this->conn = $conn;
@@ -91,8 +99,19 @@ class TableScanner
         $this->columnString = implode(', ', $this->quoteArray(true, array_keys($this->columns)));
         
         // parse condition
-        $platform = $conn->getDatabasePlatform();
-        $this->filterCondition = $this->parseCondition($filterCondition, $platform->getIdentifierQuoteCharacter());
+        $this->filterCondition = $this->parseCondition($filterCondition, $ichar);
+
+        // ignore columns
+        $this->ignoreColumns = array();
+        foreach ($ignoreColumn as $icol) {
+            $modifier = $table->getName();
+            if (strpos($icol, '.') !== false) {
+                list($modifier, $icol) = explode('.', $icol);
+            }
+            if (str_replace(array('`', '"', '[', ']'), '', $modifier) === $table->getName()) {
+                $this->ignoreColumns[] = str_replace(array('`', '"', '[', ']'), '', $icol);
+            }
+        }
     }
 
     /**
@@ -210,6 +229,9 @@ class TableScanner
             // loop for limited rows
             $count = count($sqls);
             while (($oldrow = $oldrows->fetch()) !== false && ($newrow = $newrows->fetch()) !== false) {
+                $this->filterIgnoreColumn($oldrow);
+                $this->filterIgnoreColumn($newrow);
+
                 // no diff row
                 if (!($deltas = array_diff_assoc($newrow, $oldrow))) {
                     continue;
@@ -321,6 +343,13 @@ class TableScanner
         }
         
         return 'TRUE';
+    }
+
+    private function filterIgnoreColumn(&$row)
+    {
+        foreach ($this->ignoreColumns as $icol) {
+            unset($row[$icol]);
+        }
     }
 
     /**

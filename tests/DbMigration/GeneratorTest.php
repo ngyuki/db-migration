@@ -18,12 +18,14 @@ class GeneratorTest extends AbstractTestCase
      *
      * @param Connection $old
      * @param Connection $new
-     * @param array $tables
+     * @param string $table
+     * @param array $wheres
+     * @param array $ignroes
      * @return array
      */
-    private function getDML($old, $new, $tables)
+    private function getDML($old, $new, $table, $wheres = array(), $ignroes = array())
     {
-        return Generator::getDML($old, $new, $tables);
+        return Generator::getDML($old, $new, $table, (array) $wheres, (array) $ignroes);
     }
 
     protected function setup()
@@ -72,7 +74,8 @@ class GeneratorTest extends AbstractTestCase
             '{"id":5,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"1999-01-01 00:00:00"}',
             '{"id":6,"c_int":2,"c_float":2,"c_varchar":"charX","c_text":"textX","c_datetime":"1999-01-01 00:00:00"}',
             '{"id":8,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
-            '{"id":9,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}'
+            '{"id":9,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
+            '{"id":99,"c_int":1,"c_float":1.2,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
         ));
         $this->insertMultiple($this->new, 'foo', array(
             '{"id":-2,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
@@ -83,7 +86,8 @@ class GeneratorTest extends AbstractTestCase
             '{"id":3,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
             '{"id":4,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
             '{"id":5,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
-            '{"id":6,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}'
+            '{"id":6,"c_int":1,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
+            '{"id":99,"c_int":2,"c_float":1.4,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
         ));
     }
 
@@ -103,14 +107,14 @@ class GeneratorTest extends AbstractTestCase
      */
     function migrate_dml()
     {
-        $dmls = $this->getDML($this->old, $this->new, array('foo' => '1'));
-        $this->assertCount(10, $dmls);
+        $dmls = $this->getDML($this->old, $this->new, 'foo', '1');
+        $this->assertCount(11, $dmls);
         
         foreach ($dmls as $sql) {
             $this->old->exec($sql);
         }
 
-        $dmls = $this->getDML($this->old, $this->new, array('foo' => '1'));
+        $dmls = $this->getDML($this->old, $this->new, 'foo', '1');
         $this->assertCount(0, $dmls);
     }
 
@@ -119,8 +123,35 @@ class GeneratorTest extends AbstractTestCase
      */
     function migrate_dml_where()
     {
-        $dmls = $this->getDML($this->old, $this->new, array('foo' => 'id = -1'));
+        $dmls = $this->getDML($this->old, $this->new, 'foo', 'id = -1');
         $this->assertCount(1, $dmls);
+    }
+
+    /**
+     * @test
+     */
+    function migrate_dml_ignore()
+    {
+        // c_int,c_float しか違いがないので無視すれば差分なしのはず
+        $dmls = $this->getDML($this->old, $this->new, 'foo', 'id = 99', array('c_int', 'c_float'));
+        $this->assertCount(0, $dmls);
+
+        // 修飾してもテーブルが一致すれば同様のはず
+        $dmls = $this->getDML($this->old, $this->new, 'foo', 'id = 99', array('foo.c_int', 'foo.c_float'));
+        $this->assertCount(0, $dmls);
+
+        // クォートできるはず
+        $dmls = $this->getDML($this->old, $this->new, 'foo', 'id = 99', array('`foo`.`c_int`', '`c_float`'));
+        $this->assertCount(0, $dmls);
+
+        // テーブルが不一致なら普通に差分ありのはず
+        $dmls = $this->getDML($this->old, $this->new, 'foo', 'id = 99', array('bar.c_int', 'bar.c_float'));
+        $this->assertCount(1, $dmls);
+
+        // INSERT には影響しないはず
+        $dmls1 = $this->getDML($this->old, $this->new, 'foo', 'id = -1');
+        $dmls2 = $this->getDML($this->old, $this->new, 'foo', 'id = -1', array('c_int', 'c_float', 'c_varchar'));
+        $this->assertEquals($dmls1, $dmls2);
     }
 
     /**
@@ -130,7 +161,7 @@ class GeneratorTest extends AbstractTestCase
     {
         $e = new SchemaException("There is no table with name", SchemaException::TABLE_DOESNT_EXIST);
         
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array('notable' => '1'));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, 'notable', '1');
     }
 
     /**
@@ -140,7 +171,7 @@ class GeneratorTest extends AbstractTestCase
     {
         $e = new MigrationException("has no primary key");
         
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array('nopkey' => '1'));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, 'nopkey', '1');
     }
 
     /**
@@ -150,8 +181,8 @@ class GeneratorTest extends AbstractTestCase
     {
         $e = new MigrationException("has different definition");
 
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array('diffpkey' => '1'));
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array('diffcolumn' => '1'));
-        $this->assertException($e, $this->getDML, $this->old, $this->new, array('difftype' => '1'));
+        $this->assertException($e, $this->getDML, $this->old, $this->new, 'diffpkey', '1');
+        $this->assertException($e, $this->getDML, $this->old, $this->new, 'diffcolumn', '1');
+        $this->assertException($e, $this->getDML, $this->old, $this->new, 'difftype', '1');
     }
 }

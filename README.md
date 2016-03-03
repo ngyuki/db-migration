@@ -77,6 +77,7 @@ Options:
  --include (-i)        Target tables (enable comma separated value) (multiple values allowed)
  --exclude (-e)        Except tables (enable comma separated value) (multiple values allowed)
  --where (-w)          Where condition.
+ --ignore (-g)         Ignore column for DML.
  --omit (-o)           Omit size for long SQL
  --check (-c)          Check only (Dry run. force no-interaction)
  --force (-f)          Force continue, ignore errors
@@ -119,8 +120,21 @@ ALTER 文などの DDL は普通に出力されます（後述参照）。
 
 ### --where (-w)
 
+DML 差分対象の WHERE 文を指定します。
+このオプションで指定したレコードが DML 差分対象になります。
+
 `table.column = 99` のように指定するとそのテーブルのみで適用されます。
 `column = 99` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
+識別子はクオートしても構いません。
+
+### --ignore (-g)
+
+DML 差分対象のカラム名を指定します。
+このオプションで指定したカラムが DML 差分対象になります。
+具体的には UPDATE の比較対象としてそのカラムを使うか否か、です。
+
+`table.column` のように指定するとそのテーブルのみで適用されます。
+`column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
 
 ### --keep (-k)

@@ -45,6 +45,7 @@ class MigrateCommand extends Command
             new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables (enable comma separated value)'),
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
+            new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column for DML.'),
             new InputOption('omit', 'o', InputOption::VALUE_REQUIRED, 'Omit size for long SQL'),
             new InputOption('check', 'c', InputOption::VALUE_NONE, 'Check only (Dry run. force no-interaction)'),
             new InputOption('force', 'f', InputOption::VALUE_NONE, 'Force continue, ignore errors'),
@@ -312,7 +313,8 @@ EOT
         
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
-        $wheres = (array) $input->getOption('where') ?: '1';
+        $wheres = (array) $input->getOption('where') ?: array();
+        $ignores = (array) $input->getOption('ignore') ?: array();
         
         $dialog = new DialogHelper();
         
@@ -364,7 +366,7 @@ EOT
             // get dml
             $sqls = null;
             try {
-                $sqls = Generator::getDML($srcConn, $dstConn, array($table => $wheres));
+                $sqls = Generator::getDML($srcConn, $dstConn, $table, $wheres, $ignores);
             }
             catch (MigrationException $ex) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
