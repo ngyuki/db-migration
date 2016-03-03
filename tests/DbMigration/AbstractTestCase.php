@@ -1,27 +1,34 @@
 <?php
 namespace ryunosuke\Test\DbMigration;
 
-use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\Table;
 
 abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
 {
-
+    /**
+     * @var Connection
+     */
     protected $connection, $old, $new;
 
+    /**
+     * @var AbstractSchemaManager
+     */
     protected $oldSchema, $newSchema;
 
     /**
      * for get closure of method
      *
      * @param string $name
-     * @return Closure
+     * @return \Closure
      */
     public function __get($name)
     {
         // compatible PHPUnit_Framework_TestCase::__get
         if (is_callable('parent::__get')) {
+            /** @noinspection PhpUndefinedMethodInspection */
             return parent::__get($name);
         }
         
@@ -58,20 +65,20 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
     public function getConnection($prefix, $dbname = null)
     {
         $g_keys = array(
-            'type' => "{$prefix}_db_type",
-            'host' => "{$prefix}_db_host",
-            'port' => "{$prefix}_db_port",
-            'name' => "{$prefix}_db_name",
+            'type'     => "{$prefix}_db_type",
+            'host'     => "{$prefix}_db_host",
+            'port'     => "{$prefix}_db_port",
+            'name'     => "{$prefix}_db_name",
             'username' => "{$prefix}_db_username",
             'password' => "{$prefix}_db_password"
         );
         
         $params = array(
-            'driver' => $GLOBALS[$g_keys['type']],
-            'host' => $GLOBALS[$g_keys['host']],
-            'port' => $GLOBALS[$g_keys['port']],
-            'dbname' => $GLOBALS[$g_keys['name']],
-            'user' => $GLOBALS[$g_keys['username']],
+            'driver'   => $GLOBALS[$g_keys['type']],
+            'host'     => $GLOBALS[$g_keys['host']],
+            'port'     => $GLOBALS[$g_keys['port']],
+            'dbname'   => $GLOBALS[$g_keys['name']],
+            'user'     => $GLOBALS[$g_keys['username']],
             'password' => $GLOBALS[$g_keys['password']]
         );
         
@@ -113,9 +120,11 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
     {
         try {
             call_user_func_array($callback, array_slice(func_get_args(), 2));
-        } catch (\PHPUnit_Framework_Exception $ex) {
+        }
+        catch (\PHPUnit_Framework_Exception $ex) {
             throw $ex;
-        } catch (\Exception $ex) {
+        }
+        catch (\Exception $ex) {
             self::assertInstanceOf(get_class($e), $ex);
             self::assertEquals($e->getCode(), $ex->getCode());
             if (strlen($e->getMessage()) > 0) {
@@ -144,7 +153,8 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
                 }
             }
             self::assertContains($needle, array(), $message);
-        } elseif (is_string($haystack)) {
+        }
+        elseif (is_string($haystack)) {
             self::assertContains($needle, $haystack, $message);
         }
     }

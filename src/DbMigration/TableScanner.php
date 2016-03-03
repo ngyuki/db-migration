@@ -6,7 +6,6 @@ use Doctrine\DBAL\Schema\Table;
 
 class TableScanner
 {
-
     /**
      * count of 1 page fetching
      *
@@ -68,7 +67,7 @@ class TableScanner
      */
     public function __construct(Connection $conn, Table $table, $filterCondition)
     {
-        if (! $table->hasPrimaryKey()) {
+        if (!$table->hasPrimaryKey()) {
             throw new MigrationException("has no primary key.");
         }
         
@@ -129,7 +128,7 @@ class TableScanner
     /**
      * get DELETE sql from primary tuples
      *
-     * @param arrat $tuples
+     * @param array $tuples
      * @param TableScanner $that
      * @return array
      */
@@ -165,7 +164,7 @@ class TableScanner
     /**
      * get INSERT sql from primary tuples
      *
-     * @param arrat $tuples
+     * @param array $tuples
      * @param TableScanner $that
      * @return array
      */
@@ -197,8 +196,8 @@ class TableScanner
     /**
      * get UPDATE sql from primary tuples
      *
-     * @param arrat $tuples
-     * @param TableScanner $table
+     * @param array $tuples
+     * @param TableScanner $that
      * @return array
      */
     public function getUpdateSql(array $tuples, TableScanner $that)
@@ -212,7 +211,7 @@ class TableScanner
             $count = count($sqls);
             while (($oldrow = $oldrows->fetch()) !== false && ($newrow = $newrows->fetch()) !== false) {
                 // no diff row
-                if (! ($deltas = array_diff_assoc($newrow, $oldrow))) {
+                if (!($deltas = array_diff_assoc($newrow, $oldrow))) {
                     continue;
                 }
                 
@@ -337,8 +336,7 @@ class TableScanner
         $conn = $this->conn;
         
         // quote
-        return array_map(function ($val) use($is_identifier, $conn)
-        {
+        return array_map(function ($val) use ($is_identifier, $conn) {
             return $is_identifier ? $conn->quoteIdentifier($val) : $conn->quote($val);
         }, $array);
     }
@@ -353,8 +351,7 @@ class TableScanner
     private function commentize(array $data, $width = 80)
     {
         // shorten value
-        $comment = var_export(array_map(function ($val) use($width)
-        {
+        $comment = var_export(array_map(function ($val) use ($width) {
             if (is_string($val)) {
                 return mb_strimwidth($val, 0, $width, '...');
             }
@@ -381,8 +378,7 @@ class TableScanner
         $keys = $this->quoteArray(true, array_keys($array));
         $vals = $this->quoteArray(false, array_values($array));
         
-        return array_map(function ($key, $val) use($separator)
-        {
+        return array_map(function ($key, $val) use ($separator) {
             return "{$key}{$separator}{$val}";
         }, $keys, $vals);
     }
@@ -402,7 +398,8 @@ class TableScanner
         if (count($whereArray, COUNT_RECURSIVE) === count($whereArray)) {
             $and = $this->joinKeyValue($whereArray);
             return '(' . implode(' AND ', $and) . ')';
-        } else {
+        }
+        else {
             $or = array();
             foreach ($whereArray as $values) {
                 $or[] = $this->buildWhere($values);

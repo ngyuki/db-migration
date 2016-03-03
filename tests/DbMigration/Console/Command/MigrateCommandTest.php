@@ -1,9 +1,9 @@
 <?php
 namespace ryunosuke\Test\DbMigration\Console\Command;
 
-use ryunosuke\Test\DbMigration\AbstractTestCase;
-use ryunosuke\DbMigration\Console\Command\MigrateCommand;
 use Doctrine\DBAL\Tools\Console\Helper\ConnectionHelper;
+use ryunosuke\DbMigration\Console\Command\MigrateCommand;
+use ryunosuke\Test\DbMigration\AbstractTestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Helper\HelperSet;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -11,7 +11,9 @@ use Symfony\Component\Console\Output\BufferedOutput;
 
 class MigrateCommandTest extends AbstractTestCase
 {
-
+    /**
+     * @var Application
+     */
     private $app;
 
     protected function setup()
@@ -41,11 +43,11 @@ class MigrateCommandTest extends AbstractTestCase
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('sametable', 'integer', 'id'));
         
         $this->old->insert('migtable', array(
-            'id' => 5,
+            'id'   => 5,
             'code' => 2
         ));
         $this->old->insert('migtable', array(
-            'id' => 9,
+            'id'   => 9,
             'code' => 999
         ));
         $this->old->insert('sametable', array(
@@ -73,14 +75,16 @@ class MigrateCommandTest extends AbstractTestCase
 
     /**
      * @closurable
+     * @param array $inputArray
+     * @return string
      */
     private function runApp($inputArray)
     {
         $inputArray = array(
-            'command' => 'dbal:migrate'
-        ) + $inputArray + array(
-            '-n' => true
-        );
+                'command' => 'dbal:migrate'
+            ) + $inputArray + array(
+                '-n' => true
+            );
         
         $input = new ArrayInput($inputArray);
         $output = new BufferedOutput();
@@ -96,7 +100,7 @@ class MigrateCommandTest extends AbstractTestCase
     function run_file()
     {
         $result = $this->runApp(array(
-            '-vvv' => true,
+            '-vvv'  => true,
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
@@ -116,19 +120,17 @@ class MigrateCommandTest extends AbstractTestCase
     function run_dsn()
     {
         $result = $this->runApp(array(
-            '-vvv' => true,
+            '-vvv'  => true,
             '--dsn' => $this->new->getHost(),
-            'files' => array(
-            )
+            'files' => array()
         ));
         
         $this->assertContains($this->old->getDatabase(), $result);
         
         $result = $this->runApp(array(
-            '-vvv' => true,
+            '-vvv'  => true,
             '--dsn' => $this->new->getHost() . '/' . $this->new->getDatabase(),
-            'files' => array(
-            )
+            'files' => array()
         ));
         
         $this->assertContains($this->new->getDatabase(), $result);
@@ -141,7 +143,7 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $result = $this->runApp(array(
             '--type' => 'ddl',
-            'files' => array(
+            'files'  => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -160,7 +162,7 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $result = $this->runApp(array(
             '--type' => 'dml',
-            'files' => array(
+            'files'  => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -178,7 +180,7 @@ class MigrateCommandTest extends AbstractTestCase
     function run_xcludes()
     {
         $result = $this->runApp(array(
-            '-v' => true,
+            '-v'        => true,
             '--include' => array(
                 'migtable'
             ),
@@ -186,7 +188,7 @@ class MigrateCommandTest extends AbstractTestCase
                 'igntable',
                 'migtable'
             ),
-            'files' => array(
+            'files'     => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -252,18 +254,18 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $this->insertMultiple($this->old, 'unqtable', array(
             array(
-                'id' => 2,
+                'id'   => 2,
                 'code' => 7
             ),
             array(
-                'id' => 3,
+                'id'   => 3,
                 'code' => 7
             )
         ));
         
         $result = $this->runApp(array(
             '--force' => true,
-            'files' => array(
+            'files'   => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -273,7 +275,7 @@ class MigrateCommandTest extends AbstractTestCase
         
         $this->assertExceptionMessage("key 'unq_index'", $this->runApp, array(
             '--force' => false,
-            'files' => array(
+            'files'   => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -287,18 +289,18 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $this->insertMultiple($this->old, 'migtable', array(
             array(
-                'id' => 19,
+                'id'   => 19,
                 'code' => 20
             ),
             array(
-                'id' => 20,
+                'id'   => 20,
                 'code' => 19
             )
         ));
         
         $result = $this->runApp(array(
             '--force' => true,
-            'files' => array(
+            'files'   => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -310,7 +312,7 @@ class MigrateCommandTest extends AbstractTestCase
         
         $this->assertExceptionMessage("key 'unq_index'", $this->runApp, array(
             '--force' => false,
-            'files' => array(
+            'files'   => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -325,9 +327,9 @@ class MigrateCommandTest extends AbstractTestCase
     function run_throwable_migration()
     {
         $result = $this->runApp(array(
-            '-v' => true,
+            '-v'     => true,
             '--type' => 'dml',
-            'files' => array(
+            'files'  => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
@@ -344,14 +346,13 @@ class MigrateCommandTest extends AbstractTestCase
     {
         // replace pre/post callback
         $checker = null;
+        /** @var MigrateCommand $command */
         $command = $this->app->get('dbal:migrate');
-        $command->setPreMigration(function ($conn) use(&$checker)
-        {
+        $command->setPreMigration(function () use (&$checker) {
             $checker = true;
             throw new \RuntimeException('pre migration');
         });
-        $command->setPostMigration(function ($conn) use(&$checker)
-        {
+        $command->setPostMigration(function () use (&$checker) {
             $checker = false;
         });
         
@@ -370,10 +371,9 @@ class MigrateCommandTest extends AbstractTestCase
      */
     function run_omission_sql()
     {
-        $this->insertMultiple($this->old, 'migtable', array_map(function ($i)
-        {
+        $this->insertMultiple($this->old, 'migtable', array_map(function ($i) {
             return array(
-                'id' => $i + 100,
+                'id'   => $i + 100,
                 'code' => $i * 10
             );
         }, range(1, 1001)));
@@ -394,7 +394,7 @@ class MigrateCommandTest extends AbstractTestCase
     function run_omission_dml()
     {
         $this->old->insert('longtable', array(
-            'id' => 1,
+            'id'        => 1,
             'text_data' => str_pad('', 2048, 'X'),
             'blob_data' => str_pad('', 2048, 'Y')
         ));
@@ -415,8 +415,8 @@ class MigrateCommandTest extends AbstractTestCase
     function run_verbosity()
     {
         $result = $this->runApp(array(
-            '-c' => true,
-            '-q' => true,
+            '-c'    => true,
+            '-q'    => true,
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
@@ -426,7 +426,7 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertEmpty($result);
         
         $result = $this->runApp(array(
-            '-c' => true,
+            '-c'    => true,
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
@@ -436,8 +436,8 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertNotContains('is skipped by no diff', $result);
         
         $result = $this->runApp(array(
-            '-c' => true,
-            '-v' => true,
+            '-c'    => true,
+            '-v'    => true,
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')

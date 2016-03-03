@@ -1,20 +1,25 @@
 <?php
 namespace ryunosuke\Test\DbMigration;
 
-use ryunosuke\Test\DbMigration\AbstractTestCase;
-use ryunosuke\DbMigration\Generator;
-use ryunosuke\DbMigration\MigrationException;
-use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\SchemaException;
+use ryunosuke\DbMigration\Generator;
+use ryunosuke\DbMigration\MigrationException;
 
 class GeneratorTest extends AbstractTestCase
 {
-
+    /**
+     * @var Connection
+     */
     protected $old, $new;
 
     /**
      * @closurable
+     *
+     * @param Connection $old
+     * @param Connection $new
+     * @param array $tables
+     * @return array
      */
     private function getDML($old, $new, $tables)
     {
@@ -98,14 +103,14 @@ class GeneratorTest extends AbstractTestCase
      */
     function migrate_dml()
     {
-        $dmls = $this->getDML($this->old, $this->new, array('foo' =>'1'));
+        $dmls = $this->getDML($this->old, $this->new, array('foo' => '1'));
         $this->assertCount(10, $dmls);
         
         foreach ($dmls as $sql) {
             $this->old->exec($sql);
         }
 
-        $dmls = $this->getDML($this->old, $this->new, array('foo' =>'1'));
+        $dmls = $this->getDML($this->old, $this->new, array('foo' => '1'));
         $this->assertCount(0, $dmls);
     }
 

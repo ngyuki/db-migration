@@ -2,12 +2,12 @@
 namespace ryunosuke\DbMigration;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Schema\Comparator;
-use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Schema\Schema;
 
 class Generator
 {
-
     /**
      * diff schema, get DDL
      *
@@ -27,7 +27,8 @@ class Generator
         // @codeCoverageIgnoreStart
         if (method_exists($diff, 'toFilterSql')) {
             return $diff->toFilterSql($platform, $includes, $excludes);
-        } else {
+        }
+        else {
             return $diff->toSql($platform);
         }
         // @codeCoverageIgnoreEnd
@@ -44,15 +45,16 @@ class Generator
      */
     static public function getDML($old, $new, $tables)
     {
+        /** @var Schema[] $schemaCache */
         static $schemaCache = array();
         
         // cache $schema
         $oldid = spl_object_hash($old);
-        if (! isset($schemaCache[$oldid])) {
+        if (!isset($schemaCache[$oldid])) {
             $schemaCache[$oldid] = $old->getSchemaManager()->createSchema();
         }
         $newid = spl_object_hash($new);
-        if (! isset($schemaCache[$newid])) {
+        if (!isset($schemaCache[$newid])) {
             $schemaCache[$newid] = $new->getSchemaManager()->createSchema();
         }
         
@@ -70,7 +72,7 @@ class Generator
             $newScanner = new TableScanner($new, $newSchema->getTable($table), $conds);
             
             // check different column definitation
-            if (! $oldScanner->equals($newScanner)) {
+            if (!$oldScanner->equals($newScanner)) {
                 throw new MigrationException("has different definition between schema.");
             }
             

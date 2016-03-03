@@ -1,20 +1,19 @@
 <?php
 namespace ryunosuke\DbMigration\Console\Command;
 
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
 use ryunosuke\DbMigration\Generator;
 use ryunosuke\DbMigration\MigrationException;
-use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class MigrateCommand extends Command
 {
-
     private $preMigration = null;
 
     private $postMigration = null;
@@ -61,7 +60,7 @@ Migrate to SQL file or running database.
  e.g. `dbal:migrate example.sql --check`
  e.g. `dbal:migrate -d hostname/dbname --check`
 EOT
-);
+        );
     }
 
     /**
@@ -99,7 +98,8 @@ EOT
             
             // post migration
             $this->doCallback(9, $srcConn);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             // post migration
             $this->doCallback(9, $srcConn);
             
@@ -110,7 +110,7 @@ EOT
     private function normalizeFile(InputInterface $input)
     {
         $files = (array) $input->getArgument('files');
-        if (count($files) === 0 && ! $input->getOption('dsn')) {
+        if (count($files) === 0 && !$input->getOption('dsn')) {
             throw new \InvalidArgumentException("require 'file' argument or 'dsn' option.");
         }
         
@@ -123,9 +123,10 @@ EOT
                 $filePath = $file;
             }
             
-            if (! is_readable($filePath)) {
+            if (!is_readable($filePath)) {
                 throw new \InvalidArgumentException(sprintf("SQL file '<info>%s</info>' does not exist.", $filePath));
-            } elseif (is_dir($filePath)) {
+            }
+            elseif (is_dir($filePath)) {
                 throw new \InvalidArgumentException(sprintf("SQL file '<info>%s</info>' is directory.", $filePath));
             }
             
@@ -143,19 +144,19 @@ EOT
         $url = $input->getOption('dsn');
         if ($input->getOption('dsn')) {
             // detect destination database params
-            $parseDatabaseUrl = new \ReflectionMethod('\Doctrine\DBAL\DriverManager::parseDatabaseUrl');
+            $parseDatabaseUrl = new \ReflectionMethod('\\Doctrine\\DBAL\\DriverManager', 'parseDatabaseUrl');
             $parseDatabaseUrl->setAccessible(true);
             $dstParams = $parseDatabaseUrl->invoke(null, compact('url'));
             unset($dstParams['url']);
             
             // fix dbname (if is not set $host and $dbname contains '/', specify 'hostname/dbname' in many cases)
-            if (! isset($dstParams['host']) && count($parts = explode('/', $dstParams['dbname'])) > 1) {
+            if (!isset($dstParams['host']) && count($parts = explode('/', $dstParams['dbname'])) > 1) {
                 $dstParams['host'] = $parts[0];
                 $dstParams['dbname'] = $parts[1];
             }
             
             // fix hostname (if is not set $host, specify 'hostname' in many cases)
-            if (! isset($dstParams['host'])) {
+            if (!isset($dstParams['host'])) {
                 $dstParams['host'] = $dstParams['dbname'];
                 $dstParams['dbname'] = '';
             }
@@ -166,9 +167,10 @@ EOT
             }
             
             $dstParams += $srcConn->getParams();
-        } else {
+        }
+        else {
             $dstParams = $srcParams;
-            $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(join(array_map('filemtime', $files)));
+            $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
         }
         
         // create destination connection
@@ -178,7 +180,7 @@ EOT
         }
         
         // if specify DSN, never touch destination
-        if (! $url) {
+        if (!$url) {
             $dstName = $dstParams['dbname'];
             unset($dstParams['dbname']);
             
@@ -193,7 +195,7 @@ EOT
             }
             
             // create destination database if not exists
-            if (! $existsDstDb) {
+            if (!$existsDstDb) {
                 $schemer->createDatabase($dstName);
                 $this->doCallback(1, $dstConn);
                 
@@ -204,14 +206,16 @@ EOT
                     try {
                         $dstConn->exec(file_get_contents($filename));
                         $dstConn->commit();
-                    } catch (\Exception $e) {
+                    }
+                    catch (\Exception $e) {
                         $dstConn->rollBack();
                         throw $e;
                     }
                 }
                 
                 $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
-            } else {
+            }
+            else {
                 $this->doCallback(1, $dstConn);
             }
         }
@@ -226,7 +230,7 @@ EOT
         $dialog = new DialogHelper();
         
         // drop destination database
-        if (! $keepdb) {
+        if (!$keepdb) {
             $dstName = $dstConn->getDatabase();
             
             // drop current
@@ -251,7 +255,7 @@ EOT
 
     private function migrateDDL(Connection $srcConn, Connection $dstConn, InputInterface $input, OutputInterface $output)
     {
-        if (! in_array($input->getOption('type'), explode(',', ',ddl'))) {
+        if (!in_array($input->getOption('type'), explode(',', ',ddl'))) {
             return;
         }
         
@@ -268,7 +272,7 @@ EOT
         
         // get ddl
         $sqls = Generator::getDDL($srcConn, $dstConn, $includes, $excludes);
-        if (! $sqls) {
+        if (!$sqls) {
             $output->writeln("-- no diff schema.");
             return;
         }
@@ -279,13 +283,15 @@ EOT
             
             // exec if noconfirm or confirm answer is "y"
             if ($autoyes || $dialog->askConfirmation($output, '<question>exec this query?(y/n):</question>', false)) {
-                if (! $dryrun) {
+                if (!$dryrun) {
                     try {
                         $srcConn->exec($sql);
-                    } catch (\Exception $e) {
+                    }
+                    catch (\Exception $e) {
                         if ($force) {
                             $output->writeln('-- <error>' . $e->getMessage() . '</error>');
-                        } else {
+                        }
+                        else {
                             throw $e;
                         }
                     }
@@ -296,7 +302,7 @@ EOT
 
     private function migrateDML(Connection $srcConn, Connection $dstConn, InputInterface $input, OutputInterface $output)
     {
-        if (! in_array($input->getOption('type'), explode(',', ',dml'))) {
+        if (!in_array($input->getOption('type'), explode(',', ',dml'))) {
             return;
         }
         
@@ -306,7 +312,7 @@ EOT
         
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
-        $wheres = (array) $input->getOption('where') ?  : '1';
+        $wheres = (array) $input->getOption('where') ?: '1';
         
         $dialog = new DialogHelper();
         
@@ -348,7 +354,7 @@ EOT
             }
             
             // skip no has record
-            if (! $dstConn->fetchColumn("select COUNT(*) from $table")) {
+            if (!$dstConn->fetchColumn("select COUNT(*) from $table")) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by no record.");
                 }
@@ -359,14 +365,15 @@ EOT
             $sqls = null;
             try {
                 $sqls = Generator::getDML($srcConn, $dstConn, array($table => $wheres));
-            } catch (MigrationException $ex) {
+            }
+            catch (MigrationException $ex) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by " . $ex->getMessage());
                 }
                 continue;
             }
             
-            if (! $sqls) {
+            if (!$sqls) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by no diff.");
                 }
@@ -388,7 +395,7 @@ EOT
             // exec if noconfirm or confirm answer is "y"
             $dmlflag = true;
             if ($autoyes || $dialog->askConfirmation($output, '<question>exec this query?(y/n):</question>', true)) {
-                if (! $dryrun) {
+                if (!$dryrun) {
                     $srcConn->beginTransaction();
                     
                     try {
@@ -396,19 +403,21 @@ EOT
                             $srcConn->exec($sql);
                         }
                         $srcConn->commit();
-                    } catch (\Exception $e) {
+                    }
+                    catch (\Exception $e) {
                         $srcConn->rollBack();
                         
                         if ($force) {
                             $output->writeln('-- <error>' . $e->getMessage() . '</error>');
-                        } else {
+                        }
+                        else {
                             throw $e;
                         }
                     }
                 }
             }
         }
-        if (! $dmlflag) {
+        if (!$dmlflag) {
             $output->writeln("-- no diff table.");
         }
     }
@@ -433,7 +442,7 @@ EOT
             return;
         }
         
-        $omitlength = intval($input->getOption('omit')) ?  : 1024;
+        $omitlength = intval($input->getOption('omit')) ?: 1024;
         
         if ($formatting) {
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+?\()(.+)/su', "$1\n  $4", $sql);

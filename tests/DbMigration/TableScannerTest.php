@@ -1,14 +1,18 @@
 <?php
 namespace ryunosuke\Test\DbMigration;
 
-use ryunosuke\Test\DbMigration\AbstractTestCase;
 use ryunosuke\DbMigration\TableScanner;
 
 class TableScannerTest extends AbstractTestCase
 {
-
+    /**
+     * @var TableScanner
+     */
     private $scanner;
 
+    /**
+     * @var \ReflectionClass
+     */
     private $refClass;
 
     protected function setup()
@@ -93,8 +97,7 @@ class TableScannerTest extends AbstractTestCase
      */
     function getRecordFromPrimaryKeys_page()
     {
-        $this->insertMultiple($this->old, 'hoge', array_map(function ($i)
-        {
+        $this->insertMultiple($this->old, 'hoge', array_map(function ($i) {
             return array(
                 'id' => $i
             );
