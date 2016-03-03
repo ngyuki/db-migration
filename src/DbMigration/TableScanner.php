@@ -2,6 +2,7 @@
 namespace ryunosuke\DbMigration;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\MySqlPlatform;
 use Doctrine\DBAL\Schema\Table;
 
 class TableScanner
@@ -189,6 +190,7 @@ class TableScanner
      */
     public function getInsertSql(array $tuples, TableScanner $that)
     {
+        $isMysql = $this->conn->getDatabasePlatform() instanceof MySqlPlatform;
         $sqls = array();
         for ($page = 0; true; $page++) {
             $newrows = $that->getRecordFromPrimaryKeys($tuples, $page);
@@ -196,11 +198,20 @@ class TableScanner
             // loop for limited rows
             $count = count($sqls);
             while (($newrow = $newrows->fetch()) !== false) {
-                // to VALUES string
-                $valueString = implode(', ', $this->quoteArray(false, $newrow));
-                
-                // to SQL
-                $sqls[] = "INSERT INTO $this->quotedName ($this->columnString) VALUES\n  ($valueString)";
+                if ($isMysql) {
+                    // to VALUES string
+                    $valueString = implode(",\n  ", $this->joinKeyValue($newrow));
+
+                    // to SQL
+                    $sqls[] = "INSERT INTO $this->quotedName SET\n  $valueString";
+                }
+                else {
+                    // to VALUES string
+                    $valueString = implode(', ', $this->quoteArray(false, $newrow));
+
+                    // to SQL
+                    $sqls[] = "INSERT INTO $this->quotedName ($this->columnString) VALUES\n  ($valueString)";
+                }
             }
             
             // no more rows
@@ -366,7 +377,7 @@ class TableScanner
         
         // quote
         return array_map(function ($val) use ($is_identifier, $conn) {
-            return $is_identifier ? $conn->quoteIdentifier($val) : $conn->quote($val);
+            return $is_identifier ? $conn->quoteIdentifier($val) : ($val === null ? 'NULL' : $conn->quote($val));
         }, $array);
     }
 
@@ -379,20 +390,17 @@ class TableScanner
      */
     private function commentize(array $data, $width = 80)
     {
-        // shorten value
-        $comment = var_export(array_map(function ($val) use ($width) {
+        $keyvalues = $this->joinKeyValue(array_map(function ($val) use ($width) {
             if (is_string($val)) {
                 return mb_strimwidth($val, 0, $width, '...');
             }
             return $val;
-        }, $data), true);
-        
-        // adjust and sanitize
-        $comment = preg_replace('/^array \(/u', ' current record:', $comment);
-        $comment = preg_replace('/\)$/u', '', $comment);
+        }, $data), ' : ');
+
+        $comment = implode(",\n  ", $keyvalues);
         $comment = str_replace('*/', '* /', $comment);
-        
-        return "/*{$comment}*/";
+
+        return "/* current record\n  $comment\n*/";
     }
 
     /**
@@ -406,9 +414,11 @@ class TableScanner
     {
         $keys = $this->quoteArray(true, array_keys($array));
         $vals = $this->quoteArray(false, array_values($array));
-        
-        return array_map(function ($key, $val) use ($separator) {
-            return "{$key}{$separator}{$val}";
+
+        $maxlen = min(32, max(array_map('strlen', $keys)));
+
+        return array_map(function ($key, $val) use ($maxlen, $separator) {
+            return $key . str_repeat(' ', $maxlen - strlen($key)) . "{$separator}{$val}";
         }, $keys, $vals);
     }
 
