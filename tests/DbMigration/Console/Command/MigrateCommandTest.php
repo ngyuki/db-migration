@@ -139,6 +139,26 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_schema()
+    {
+        $this->newSchema->dropAndCreateDatabase($this->new->getDatabase());
+
+        $result = $this->runApp(array(
+            '-vvv'      => true,
+            '--schema'  => $this->new->getDatabase(),
+            '--rebuild' => '1',
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+
+        $this->assertContains($this->new->getDatabase() . ' is created.', $result);
+        $this->assertContains($this->new->getDatabase() . ' is dropped.', $result);
+    }
+
+    /**
+     * @test
+     */
     function run_type_ddl()
     {
         $result = $this->runApp(array(

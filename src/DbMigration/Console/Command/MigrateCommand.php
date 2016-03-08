@@ -40,7 +40,8 @@ class MigrateCommand extends Command
         $this->setName('dbal:migrate')->setDescription('Migrate to SQL file.');
         $this->setDefinition(array(
             new InputArgument('files', InputArgument::OPTIONAL | InputArgument::IS_ARRAY, 'SQL files'),
-            new InputOption('dsn', 'd', InputOption::VALUE_OPTIONAL, 'Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config'),
+            new InputOption('dsn', 'd', InputOption::VALUE_OPTIONAL, 'Specify destination DSN (default create temporary database) suffix based on cli-config'),
+            new InputOption('schema', 's', InputOption::VALUE_OPTIONAL, 'Specify destination database name (default `md5(filemtime(files))`)'),
             new InputOption('type', 't', InputOption::VALUE_OPTIONAL, 'Migration SQL type (ddl, dml. default both)'),
             new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables (enable comma separated value)'),
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables (enable comma separated value)'),
@@ -143,7 +144,7 @@ EOT
         unset($srcParams['url']);
         
         $url = $input->getOption('dsn');
-        if ($input->getOption('dsn')) {
+        if ($url) {
             // detect destination database params
             $parseDatabaseUrl = new \ReflectionMethod('\\Doctrine\\DBAL\\DriverManager', 'parseDatabaseUrl');
             $parseDatabaseUrl->setAccessible(true);
@@ -171,7 +172,13 @@ EOT
         }
         else {
             $dstParams = $srcParams;
-            $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
+            $schema = $input->getOption('schema');
+            if ($schema) {
+                $dstParams['dbname'] = $schema;
+            }
+            else {
+                $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
+            }
         }
         
         // create destination connection

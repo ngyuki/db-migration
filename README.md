@@ -73,6 +73,7 @@ Arguments:
 
 Options:
  --dsn (-d)            Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config
+ --schema (-s)         Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config
  --type (-t)           Migration SQL type (ddl, dml. default both)
  --include (-i)        Target tables (enable comma separated value) (multiple values allowed)
  --exclude (-e)        Except tables (enable comma separated value) (multiple values allowed)
@@ -108,6 +109,15 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 
 このオプションが指定された場合、引数の files は不要です。
 
+### --schema (-s)
+
+上記の通り、比較対象として一時スキーマを作成しますが、そのスキーマ名を指定するオプションです。
+
+`-s hoge_migration` のように指定すると hoge_migration スキーマが作成され、そこに SQL ファイルが流し込まれます。
+ただし、スキーマが既に存在するときは `-rebuild` オプションに従います。
+
+省略すると SQL ファイルの更新日時を元にしたランダムな一時スキーマ名になります。
+
 ### --include, --exclude
 
 差分対象テーブルを指定します。正規表現です。
@@ -123,8 +133,8 @@ ALTER 文などの DDL は普通に出力されます（後述参照）。
 DML 差分対象の WHERE 文を指定します。
 このオプションで指定したレコードが DML 差分対象になります。
 
-`table.column = 99` のように指定するとそのテーブルのみで適用されます。
-`column = 99` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
+`-w table.column = 99` のように指定するとそのテーブルのみで適用されます。
+`-w column = 99` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
 
 ### --ignore (-g)
@@ -133,9 +143,14 @@ DML 差分対象のカラム名を指定します。
 このオプションで指定したカラムが DML 差分対象になります。
 具体的には UPDATE の比較対象としてそのカラムを使うか否か、です。
 
-`table.column` のように指定するとそのテーブルのみで適用されます。
-`column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
+`-g table.column` のように指定するとそのテーブルのみで適用されます。
+`-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
+
+### --rebuild (-r)
+
+一時スキーマが存在する場合、それをドロップした後に SQL ファイルを流し込みます。
+逆にこのプションを指定しなかった場合、SQL ファイルは使用されませんし、一時スキーマに変更も加えません。
 
 ### --keep (-k)
 
