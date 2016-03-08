@@ -450,6 +450,23 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_no_interaction()
+    {
+        $result = $this->runApp(array(
+            '--rebuild' => '1',
+            '-n'        => '1',
+            'files'     => array(
+                $this->getFile('table.sql'),
+                $this->getFile('heavy.sql'),
+            )
+        ));
+
+        $this->assertContains('more 23 quries', $result);
+    }
+
+    /**
+     * @test
+     */
     function run_misc()
     {
         $this->newSchema->dropAndCreateDatabase($this->old->getDatabase());

@@ -1,6 +1,11 @@
 <?php
 namespace ryunosuke\Test\DbMigration;
 
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Index;
+use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Types\Type;
 use ryunosuke\DbMigration\TableScanner;
 
 class TableScannerTest extends AbstractTestCase
@@ -39,16 +44,16 @@ class TableScannerTest extends AbstractTestCase
     function parseCondition()
     {
         $condition = $this->invoke('parseCondition', '', '`');
-        $this->assertEquals('TRUE', $condition);
+        $this->assertEquals('1', $condition);
         
         $condition = $this->invoke('parseCondition', 'hoge.fuga = 1', '`');
-        $this->assertEquals('TRUE', $condition);
+        $this->assertEquals('1', $condition);
         
         $condition = $this->invoke('parseCondition', 'fuga.id = 1', '`');
-        $this->assertEquals('TRUE', $condition);
+        $this->assertEquals('1', $condition);
         
         $condition = $this->invoke('parseCondition', '`fuga`.`id` = 1', '`');
-        $this->assertEquals('TRUE', $condition);
+        $this->assertEquals('1', $condition);
         
         $condition = $this->invoke('parseCondition', 'hoge.id = 1', '`');
         $this->assertEquals('hoge.id = 1', $condition);
@@ -112,5 +117,30 @@ class TableScannerTest extends AbstractTestCase
         $this->assertCount(4, $this->invoke($method, $tuples, 1)->fetchAll());
         $this->assertCount(2, $this->invoke($method, $tuples, 2)->fetchAll());
         $this->assertCount(0, $this->invoke($method, $tuples, 3)->fetchAll());
+    }
+
+    /**
+     * @test
+     */
+    function getInsertSql_no_mysql()
+    {
+        $old = DriverManager::getConnection(array('pdo' => new \PDO('sqlite::memory:')));
+        $new = DriverManager::getConnection(array('pdo' => new \PDO('sqlite::memory:')));
+
+        $table = new Table('hogetable',
+            array(new Column('id', Type::getType('integer'))),
+            array(new Index('PRIMARY', array('id'), true, true))
+        );
+
+        $old->getSchemaManager()->dropAndCreateTable($table);
+        $new->getSchemaManager()->dropAndCreateTable($table);
+
+        $this->insertMultiple($new, 'hogetable', array(array('id' => 1)));
+
+        $scanner = new TableScanner($old, $table, '1');
+        $inserts = $scanner->getInsertSql(array(array('id' => 1)), new TableScanner($new, $table, '1'));
+
+        // sqlite no support INSERT SET syntax. Therefore VALUES (value)
+        $this->assertContains('INSERT INTO "hogetable" ("id") VALUES', $inserts[0]);
     }
 }

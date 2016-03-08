@@ -353,7 +353,7 @@ class TableScanner
             return implode(' AND ', $wheres);
         }
         
-        return 'TRUE';
+        return '1';
     }
 
     private function filterIgnoreColumn(&$row)
@@ -431,7 +431,7 @@ class TableScanner
     private function buildWhere(array $whereArray)
     {
         if (count($whereArray) === 0) {
-            return "FALSE";
+            return "0";
         }
         
         if (count($whereArray, COUNT_RECURSIVE) === count($whereArray)) {
