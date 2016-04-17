@@ -62,7 +62,7 @@ INSERT INTO `RecordTable` (`id`, `name`, `value`) VALUES
 
 ## Usage
 
-比較元は常に cli-config.php で設定された connection になります。
+原則として比較元は常に cli-config.php で設定された connection になります。
 比較先は引数で指定します。
 
 引数は下記。
@@ -72,6 +72,7 @@ Arguments:
  files                 SQL files
 
 Options:
+ --target              Specify target DSN (default cli-config)
  --dsn (-d)            Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config
  --schema (-s)         Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config
  --type (-t)           Migration SQL type (ddl, dml. default both)
@@ -98,6 +99,17 @@ files 引数でインポートする sql ファイルを指定します。
 `--help` 以下は dbal 標準のプションです。
 
 オプションは基本的に名前のとおりですが、いくつか難解なオプションがあるので説明を加えます。
+
+### --target
+
+マイグレーション対象のデーターベースを DSN で指定します。
+未指定時は `cli-config` で指定されたデータベースになります。
+
+DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式で指定します。
+要素は適宜省略できます。省略された要素は cli-config.php のものが使われます。
+
+前述の「原則として～」を覆す唯一のオプションです。
+このオプションを指定しないかぎり比較元は常に cli-config の connection です。
 
 ### --dsn (-d)
 
@@ -150,7 +162,7 @@ DML 差分対象のカラム名を指定します。
 ### --rebuild (-r)
 
 一時スキーマが存在する場合、それをドロップした後に SQL ファイルを流し込みます。
-逆にこのプションを指定しなかった場合、SQL ファイルは使用されませんし、一時スキーマに変更も加えません。
+逆にこのオプションを指定しなかった場合、SQL ファイルは使用されませんし、一時スキーマに変更も加えません。
 
 ### --keep (-k)
 
@@ -160,6 +172,19 @@ DML 差分対象のカラム名を指定します。
 ### --no-interaction (-n)
 
 指定すると確認メッセージを出さずに SQL を直接実行します。
+
+## Popular Usage
+
+DSN 周りを要約すると、よくある使い方は下記のようになります。
+
+- vendor/bin/doctrine-dbal dbal:migrate sqlfiles
+  - cli-config の接続先を sqlfiles にマイグレーションします。cli-config 先にランダムな一時スキーマが生成されます。
+- vendor/bin/doctrine-dbal dbal:migrate sqlfiles --target remotehost/dbname
+  - remotehost/dbname を sqlfiles にマイグレーションします。cli-config 先にランダムな一時スキーマが生成されます。
+- vendor/bin/doctrine-dbal dbal:migrate --dsn localhost/temporary
+  - cli-config の接続先を localhost/temporary にマイグレーションします。localhost/temporary に変更は一切加わりません。
+- vendor/bin/doctrine-dbal dbal:migrate --schema temporary
+  - cli-config の接続先を sqlfiles にマイグレーションします。 cli-config 先に temporary という一時スキーマが生成されます。
 
 ## Install
 

@@ -117,6 +117,29 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_target()
+    {
+        $this->oldSchema->dropAndCreateDatabase('migration_tests_target');
+        $result = $this->runApp(array(
+            '-vvv'     => true,
+            '--target' => $this->old->getHost() . '/migration_tests_target',
+            'files'    => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+
+        $this->assertContains('CREATE TABLE difftable', $result);
+        $this->assertContains('CREATE TABLE igntable', $result);
+        $this->assertContains('CREATE TABLE longtable', $result);
+        $this->assertContains('CREATE TABLE migtable', $result);
+        $this->assertContains('CREATE TABLE nopkeytable', $result);
+        $this->assertContains('CREATE TABLE sametable', $result);
+        $this->assertContains('CREATE TABLE unqtable', $result);
+    }
+
+    /**
+     * @test
+     */
     function run_dsn()
     {
         $result = $this->runApp(array(
@@ -501,5 +524,45 @@ class MigrateCommandTest extends AbstractTestCase
         ));
         
         $this->assertContains('no diff schema', $result);
+    }
+
+    function test_parseDsn()
+    {
+        $command = new MigrateCommand();
+        $method = new \ReflectionMethod($command, 'parseDsn');
+        $method->setAccessible(true);
+        $parseDsn = function ($dsn, $default) use ($method, $command) {
+            return $method->invoke($command, $dsn, $default);
+        };
+
+        $this->assertEquals(array(
+            'driver'   => "pdo_mysql",
+            'host'     => "host",
+            'port'     => 1234,
+            'user'     => "user",
+            'password' => "pass",
+            'dbname'   => "dbname",
+        ), $parseDsn('user:pass@host:1234/dbname', array('driver' => 'pdo_mysql')));
+
+        $this->assertEquals(array(
+            'driver' => "pdo_mysql",
+            'host'   => "host",
+            'port'   => 1234,
+            'user'   => "user",
+            'dbname' => "dbname",
+        ), $parseDsn('user@host:1234/dbname', array('driver' => 'pdo_mysql')));
+
+        $this->assertEquals(array(
+            'driver' => "pdo_mysql",
+            'host'   => "host",
+            'port'   => 1234,
+            'dbname' => "dbname",
+        ), $parseDsn('host:1234/dbname', array('driver' => 'pdo_mysql')));
+
+        $this->assertEquals(array(
+            'driver' => "autoscheme",
+            'host'   => "host",
+            'dbname' => "dbname",
+        ), $parseDsn('host', array('dbname' => 'dbname')));
     }
 }
