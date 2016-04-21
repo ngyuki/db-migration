@@ -40,6 +40,7 @@ class MigrateCommand extends Command
         $this->setName('dbal:migrate')->setDescription('Migrate to SQL file.');
         $this->setDefinition(array(
             new InputArgument('files', InputArgument::OPTIONAL | InputArgument::IS_ARRAY, 'SQL files'),
+            new InputOption('target', null, InputOption::VALUE_OPTIONAL, 'Specify target DSN (default cli-config)'),
             new InputOption('dsn', 'd', InputOption::VALUE_OPTIONAL, 'Specify destination DSN (default create temporary database) suffix based on cli-config'),
             new InputOption('schema', 's', InputOption::VALUE_OPTIONAL, 'Specify destination database name (default `md5(filemtime(files))`)'),
             new InputOption('type', 't', InputOption::VALUE_OPTIONAL, 'Migration SQL type (ddl, dml. default both)'),
@@ -74,12 +75,12 @@ EOT
             $output->writeln(var_export($input->getArguments(), true));
             $output->writeln(var_export($input->getOptions(), true));
         }
-        
-        /* @var $srcConn \Doctrine\DBAL\Connection */
-        $srcConn = $this->getHelper('db')->getConnection();
-        
+
         // normalize file
         $files = $this->normalizeFile($input);
+
+        // get target Connection
+        $srcConn = $this->readySource($input, $output);
         
         // migrate
         try {
@@ -138,6 +139,53 @@ EOT
         return $result;
     }
 
+    private function parseDsn($dsn, $default)
+    {
+        // pre-fix
+        if (strpos($dsn, '://') === false) {
+            $dsn = 'autoscheme://' . $dsn;
+        }
+
+        $parseDatabaseUrl = new \ReflectionMethod('\\Doctrine\\DBAL\\DriverManager', 'parseDatabaseUrl');
+        $parseDatabaseUrl->setAccessible(true);
+        $dstParams = $parseDatabaseUrl->invoke(null, array('url' => $dsn));
+        unset($dstParams['url']);
+
+        // fix driver (if $driver is "autoscheme", use default driver)
+        if ($dstParams['driver'] === 'autoscheme' && isset($default['driver'])) {
+            $dstParams['driver'] = $default['driver'];
+        }
+
+        // fix dbname (if $dbname is empty, use default name)
+        if ((!isset($dstParams['dbname']) || $dstParams['dbname'] === '') && isset($default['dbname'])) {
+            $dstParams['dbname'] = $default['dbname'];
+        }
+
+        return $dstParams + $default;
+    }
+
+    private function readySource(InputInterface $input, OutputInterface $output)
+    {
+        /* @var $srcConn \Doctrine\DBAL\Connection */
+        $srcConn = $this->getHelper('db')->getConnection();
+        $target = $input->getOption('target');
+
+        // no target, return cli-config connection
+        if (!$target) {
+            return $srcConn;
+        }
+
+        $srcParams = $srcConn->getParams();
+        unset($srcParams['url']);
+        $dstParams = $this->parseDsn($target, $srcParams);
+        $dstConn = DriverManager::getConnection($dstParams);
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
+            $output->writeln(var_export($dstParams, true));
+        }
+
+        return $dstConn;
+    }
+
     private function readyDestination(Connection $srcConn, $files, InputInterface $input, OutputInterface $output)
     {
         $srcParams = $srcConn->getParams();
@@ -146,29 +194,7 @@ EOT
         $url = $input->getOption('dsn');
         if ($url) {
             // detect destination database params
-            $parseDatabaseUrl = new \ReflectionMethod('\\Doctrine\\DBAL\\DriverManager', 'parseDatabaseUrl');
-            $parseDatabaseUrl->setAccessible(true);
-            $dstParams = $parseDatabaseUrl->invoke(null, compact('url'));
-            unset($dstParams['url']);
-            
-            // fix dbname (if is not set $host and $dbname contains '/', specify 'hostname/dbname' in many cases)
-            if (!isset($dstParams['host']) && count($parts = explode('/', $dstParams['dbname'])) > 1) {
-                $dstParams['host'] = $parts[0];
-                $dstParams['dbname'] = $parts[1];
-            }
-            
-            // fix hostname (if is not set $host, specify 'hostname' in many cases)
-            if (!isset($dstParams['host'])) {
-                $dstParams['host'] = $dstParams['dbname'];
-                $dstParams['dbname'] = '';
-            }
-            
-            // fix dbname (if $dbname is empty, use source name)
-            if ($dstParams['dbname'] === '') {
-                $dstParams['dbname'] = $srcParams['dbname'];
-            }
-            
-            $dstParams += $srcConn->getParams();
+            $dstParams = $this->parseDsn($url, $srcParams);
         }
         else {
             $dstParams = $srcParams;
