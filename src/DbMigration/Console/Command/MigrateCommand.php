@@ -371,7 +371,7 @@ EOT
             }
             if ($flag) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by target option.");
+                    $output->writeln("-- $title is skipped by include option.");
                 }
                 continue;
             }
@@ -381,11 +381,19 @@ EOT
                 foreach (array_map('trim', explode(',', $except)) as $regex) {
                     if (preg_match("@$regex@", $table)) {
                         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                            $output->writeln("-- $title is skipped by except option.");
+                            $output->writeln("-- $title is skipped by exclude option.");
                         }
                         continue 3;
                     }
                 }
+            }
+
+            // skip to not exists tables
+            if (!$srcConn->getSchemaManager()->tablesExist($table)) {
+                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                    $output->writeln("-- $title is skipped by not exists.");
+                }
+                continue;
             }
             
             // skip no has record

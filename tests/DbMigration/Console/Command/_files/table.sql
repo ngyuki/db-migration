@@ -33,3 +33,7 @@ CREATE TABLE sametable (
     id INT NOT NULL,
     PRIMARY KEY (id)
 );
+CREATE TABLE notexist (
+    id INT NOT NULL,
+    PRIMARY KEY (id)
+);

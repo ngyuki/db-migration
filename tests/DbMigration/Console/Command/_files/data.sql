@@ -12,3 +12,5 @@ INSERT INTO nopkeytable (id) VALUES (1);
 INSERT INTO longtable (id, text_data, blob_data) VALUES (2, (SELECT LPAD('', 512, 'X')), (SELECT RPAD(0x00010203040506070809, 512, 'Y')));
 
 INSERT INTO sametable (id) VALUES (9);
+
+INSERT INTO notexist (id) VALUES (1);

@@ -90,7 +90,7 @@ class MigrateCommandTest extends AbstractTestCase
         $output = new BufferedOutput();
         
         $this->app->run($input, $output);
-        
+
         return $output->fetch();
     }
 
@@ -481,12 +481,19 @@ class MigrateCommandTest extends AbstractTestCase
         $result = $this->runApp(array(
             '-c'    => true,
             '-v'    => true,
+            '-i'    => 'notexist,igntable,nopkeytable,sametable,difftable',
+            '-e'    => 'difftable',
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
         ));
-        
+
+        $this->assertContains('is skipped by include option', $result);
+        $this->assertContains('is skipped by exclude option', $result);
+        $this->assertContains('is skipped by not exists', $result);
+        $this->assertContains('is skipped by no record', $result);
+        $this->assertContains('is skipped by has no primary key', $result);
         $this->assertContains('is skipped by no diff', $result);
     }
 
