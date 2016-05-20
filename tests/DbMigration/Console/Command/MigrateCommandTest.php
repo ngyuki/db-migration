@@ -140,6 +140,29 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_target_config()
+    {
+        $this->oldSchema->dropAndCreateDatabase('migration_tests_target');
+        $result = $this->runApp(array(
+            '-vvv'     => true,
+            '--target' => $this->old->getHost() . '/migration_tests_target',
+            'files'    => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+
+        $this->assertContains('CREATE TABLE difftable', $result);
+        $this->assertContains('CREATE TABLE igntable', $result);
+        $this->assertContains('CREATE TABLE longtable', $result);
+        $this->assertContains('CREATE TABLE migtable', $result);
+        $this->assertContains('CREATE TABLE nopkeytable', $result);
+        $this->assertContains('CREATE TABLE sametable', $result);
+        $this->assertContains('CREATE TABLE unqtable', $result);
+    }
+
+    /**
+     * @test
+     */
     function run_dsn()
     {
         $result = $this->runApp(array(

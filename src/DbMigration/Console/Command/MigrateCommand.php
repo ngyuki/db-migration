@@ -85,7 +85,7 @@ EOT
         // migrate
         try {
             // create destination database and connection
-            $dstConn = $this->readyDestination($srcConn, $files, $input, $output);
+            $dstConn = $this->readyDestination($this->getHelper('db')->getConnection(), $files, $input, $output);
             
             // pre migration
             $this->doCallback(1, $srcConn);
@@ -177,13 +177,11 @@ EOT
 
         $srcParams = $srcConn->getParams();
         unset($srcParams['url']);
-        $dstParams = $this->parseDsn($target, $srcParams);
-        $dstConn = DriverManager::getConnection($dstParams);
+        $srcParams = $this->parseDsn($target, $srcParams);
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $output->writeln(var_export($dstParams, true));
+            $output->writeln(var_export($srcParams, true));
         }
-
-        return $dstConn;
+        return DriverManager::getConnection($srcParams);
     }
 
     private function readyDestination(Connection $srcConn, $files, InputInterface $input, OutputInterface $output)
@@ -208,10 +206,10 @@ EOT
         }
         
         // create destination connection
-        $dstConn = DriverManager::getConnection($dstParams);
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
             $output->writeln(var_export($dstParams, true));
         }
+        $dstConn = DriverManager::getConnection($dstParams);
         
         // if specify DSN, never touch destination
         if (!$url) {
