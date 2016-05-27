@@ -415,7 +415,7 @@ class TableScanner
         $keys = $this->quoteArray(true, array_keys($array));
         $vals = $this->quoteArray(false, array_values($array));
 
-        $maxlen = min(32, max(array_map('strlen', $keys)));
+        $maxlen = max(array_map('strlen', $keys));
 
         return array_map(function ($key, $val) use ($maxlen, $separator) {
             return $key . str_repeat(' ', $maxlen - strlen($key)) . "{$separator}{$val}";
