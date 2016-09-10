@@ -23,7 +23,7 @@ class Migrator
         $fromSchema = $old->getSchemaManager()->createSchema();
         $toSchema = $new->getSchemaManager()->createSchema();
         $diff = Comparator::compareSchemas($fromSchema, $toSchema);
-        
+
         // @codeCoverageIgnoreStart
         if (method_exists($diff, 'toFilterSql')) {
             return $diff->toFilterSql($platform, $includes, $excludes);
@@ -49,7 +49,7 @@ class Migrator
     {
         /** @var Schema[] $schemaCache */
         static $schemaCache = array();
-        
+
         // cache $schema
         $oldid = spl_object_hash($old);
         if (!isset($schemaCache[$oldid])) {
@@ -59,11 +59,11 @@ class Migrator
         if (!isset($schemaCache[$newid])) {
             $schemaCache[$newid] = $new->getSchemaManager()->createSchema();
         }
-        
+
         // get schema
         $oldSchema = $schemaCache[$oldid];
         $newSchema = $schemaCache[$newid];
-        
+
         // result dmls
         $dmls = array();
 
@@ -94,7 +94,7 @@ class Migrator
         if ($tuples = array_diff_key($newTuples, $oldTuples)) {
             $dmls = array_merge($dmls, $oldScanner->getInsertSql($tuples, $newScanner));
         }
-        
+
         return $dmls;
     }
 }

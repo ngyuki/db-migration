@@ -23,14 +23,14 @@ class MigrateCommand extends Command
     public function setPreMigration($callback)
     {
         ASSERT('is_callable($callback)');
-        
+
         $this->preMigration = $callback;
     }
 
     public function setPostMigration($callback)
     {
         ASSERT('is_callable($callback)');
-        
+
         $this->postMigration = $callback;
     }
 
@@ -83,31 +83,31 @@ EOT
 
         // get target Connection
         $srcConn = $this->readySource($input, $output);
-        
+
         // migrate
         try {
             // create destination database and connection
             $dstConn = $this->readyDestination($this->getHelper('db')->getConnection(), $files, $input, $output);
-            
+
             // pre migration
             $this->doCallback(1, $srcConn);
-            
+
             // DDL
             $this->migrateDDL($srcConn, $dstConn, $input, $output);
-            
+
             // DML
             $this->migrateDML($srcConn, $dstConn, $input, $output);
-            
+
             // clean destination database and connection
             $this->cleanDestination($srcConn, $dstConn, $input, $output);
-            
+
             // post migration
             $this->doCallback(9, $srcConn);
         }
         catch (\Exception $e) {
             // post migration
             $this->doCallback(9, $srcConn);
-            
+
             throw $e;
         }
     }
@@ -118,26 +118,26 @@ EOT
         if (count($files) === 0 && !$input->getOption('dsn')) {
             throw new \InvalidArgumentException("require 'file' argument or 'dsn' option.");
         }
-        
+
         $result = array();
-        
+
         foreach ($files as $file) {
             $filePath = realpath($file);
-            
+
             if (false === $filePath) {
                 $filePath = $file;
             }
-            
+
             if (!is_readable($filePath)) {
                 throw new \InvalidArgumentException(sprintf("SQL file '<info>%s</info>' does not exist.", $filePath));
             }
             elseif (is_dir($filePath)) {
                 throw new \InvalidArgumentException(sprintf("SQL file '<info>%s</info>' is directory.", $filePath));
             }
-            
+
             $result[] = $filePath;
         }
-        
+
         return $result;
     }
 
@@ -190,7 +190,7 @@ EOT
     {
         $srcParams = $srcConn->getParams();
         unset($srcParams['url']);
-        
+
         $url = $input->getOption('dsn');
         if ($url) {
             // detect destination database params
@@ -206,33 +206,33 @@ EOT
                 $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
             }
         }
-        
+
         // create destination connection
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
             $output->writeln(var_export($dstParams, true));
         }
         $dstConn = DriverManager::getConnection($dstParams);
-        
+
         // if specify DSN, never touch destination
         if (!$url) {
             $dstName = $dstParams['dbname'];
             unset($dstParams['dbname']);
-            
+
             $schemer = DriverManager::getConnection($dstParams)->getSchemaManager();
             $existsDstDb = in_array($dstName, $schemer->listDatabases());
-            
+
             // drop destination database if exists
             if ($existsDstDb && $input->getOption('rebuild')) {
                 $schemer->dropDatabase($dstName);
                 $output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
                 $existsDstDb = false;
             }
-            
+
             // create destination database if not exists
             if (!$existsDstDb) {
                 $schemer->createDatabase($dstName);
                 $this->doCallback(1, $dstConn);
-                
+
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
                 $transporter->importDDL(array_shift($files));
@@ -254,7 +254,7 @@ EOT
                 $this->doCallback(1, $dstConn);
             }
         }
-        
+
         return $dstConn;
     }
 
@@ -263,16 +263,16 @@ EOT
         $autoyes = $input->getOption('no-interaction');
         $keepdb = $input->getOption('dsn') || $input->getOption('keep');
         $confirm = new QuestionHelper();
-        
+
         // drop destination database
         if (!$keepdb) {
             $dstName = $dstConn->getDatabase();
-            
+
             // drop current
             $schemer = $dstConn->getSchemaManager();
             $schemer->dropDatabase($dstName);
             $output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
-            
+
             // drop garbage
             $target = $srcConn->getDatabase();
             foreach ($schemer->listDatabases() as $database) {
@@ -284,7 +284,7 @@ EOT
                 }
             }
         }
-        
+
         $this->doCallback(9, $dstConn);
     }
 
@@ -293,29 +293,29 @@ EOT
         if (!in_array($input->getOption('type'), explode(',', ',ddl'))) {
             return;
         }
-        
+
         $dryrun = $input->getOption('check');
         $autoyes = $dryrun || $input->getOption('no-interaction');
         $force = $input->getOption('force');
-        
+
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
 
         $confirm = new QuestionHelper();
-        
+
         $output->writeln("-- <comment>diff DDL</comment>");
-        
+
         // get ddl
         $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes);
         if (!$sqls) {
             $output->writeln("-- no diff schema.");
             return;
         }
-        
+
         foreach ($sqls as $sql) {
             // display sql(formatted)
             $this->writeSql($input, $output, $sql, true, ";");
-            
+
             // exec if noconfirm or confirm answer is "y"
             if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(y/N):</question>', 'n')))) {
                 if (!$dryrun) {
@@ -340,26 +340,26 @@ EOT
         if (!in_array($input->getOption('type'), explode(',', ',dml'))) {
             return;
         }
-        
+
         $dryrun = $input->getOption('check');
         $autoyes = $dryrun || $input->getOption('no-interaction');
         $force = $input->getOption('force');
-        
+
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
         $wheres = (array) $input->getOption('where') ?: array();
         $ignores = (array) $input->getOption('ignore') ?: array();
 
         $confirm = new QuestionHelper();
-        
+
         $output->writeln("-- <comment>diff DML</comment>");
-        
+
         $tables = $dstConn->getSchemaManager()->listTableNames();
         $maxlength = $tables ? max(array_map('strlen', $tables)) + 1 : 0;
         $dmlflag = false;
         foreach ($tables as $table) {
             $title = sprintf("<info>%-{$maxlength}s</info>", $table);
-            
+
             // skip to not contain include tables
             $flag = count($includes) > 0;
             foreach ($includes as $target) {
@@ -376,7 +376,7 @@ EOT
                 }
                 continue;
             }
-            
+
             // skip to contain exclude tables
             foreach ($excludes as $except) {
                 foreach (array_map('trim', explode(',', $except)) as $regex) {
@@ -396,7 +396,7 @@ EOT
                 }
                 continue;
             }
-            
+
             // skip no has record
             if (!$dstConn->fetchColumn("select COUNT(*) from $table")) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
@@ -404,7 +404,7 @@ EOT
                 }
                 continue;
             }
-            
+
             // get dml
             $sqls = null;
             try {
@@ -416,16 +416,16 @@ EOT
                 }
                 continue;
             }
-            
+
             if (!$sqls) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by no diff.");
                 }
                 continue;
             }
-            
+
             $output->writeln("-- $title has diff:");
-            
+
             // display sql(if noconfirm, max 1000)
             $shown_sqls = $sqls;
             if ($autoyes && count($sqls) > 1000) {
@@ -435,13 +435,13 @@ EOT
             foreach ($shown_sqls as $sql) {
                 $this->writeSql($input, $output, $sql, false, ";");
             }
-            
+
             // exec if noconfirm or confirm answer is "y"
             $dmlflag = true;
             if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(Y/n):</question>', 'y')))) {
                 if (!$dryrun) {
                     $srcConn->beginTransaction();
-                    
+
                     try {
                         foreach ($sqls as $sql) {
                             $srcConn->exec($sql);
@@ -450,7 +450,7 @@ EOT
                     }
                     catch (\Exception $e) {
                         $srcConn->rollBack();
-                        
+
                         if ($force) {
                             $output->writeln('-- <error>' . $e->getMessage() . '</error>');
                         }
@@ -485,9 +485,9 @@ EOT
         if ($output->getVerbosity() <= OutputInterface::VERBOSITY_QUIET) {
             return;
         }
-        
+
         $omitlength = intval($input->getOption('omit')) ?: 1024;
-        
+
         if ($formatting) {
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+?\()(.+)/su', "$1\n  $4", $sql);
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+)(\))/su', "$1\n$4", $sql);
@@ -496,11 +496,11 @@ EOT
 
             $sql = preg_replace('/(, )([^\\d])/u', ",\n  $2", $sql);
         }
-        
+
         if (mb_strlen($sql) > $omitlength) {
             $sql = mb_strimwidth($sql, 0, $omitlength, PHP_EOL . "...(omitted)");
         }
-        
+
         $output->write($sql);
         $output->writeln($delimiter);
         $output->writeln('');

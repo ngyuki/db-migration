@@ -74,11 +74,11 @@ class TableScanner
         }
 
         $ichar = $conn->getDatabasePlatform()->getIdentifierQuoteCharacter();
-        
+
         // set property from argument
         $this->conn = $conn;
         $this->table = $table;
-        
+
         // set property from property
         $this->quotedName = $conn->quoteIdentifier($this->table->getName());
         $this->primaryKeys = $this->table->getPrimaryKeyColumns();
@@ -130,21 +130,21 @@ class TableScanner
         if ($this->primaryKeyString !== $that->primaryKeyString) {
             return false;
         }
-        
+
         // compare column name
         if (array_fill_keys(array_keys($this->columns), '') != array_fill_keys(array_keys($that->columns), '')) {
             return false;
         }
-        
+
         // compare column attribute
         foreach ($this->columns as $name => $thisColumn) {
             $thatColumn = $that->columns[$name];
-            
+
             if (strval($thisColumn->getType()) !== strval($thatColumn->getType())) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -160,27 +160,27 @@ class TableScanner
         $sqls = array();
         for ($page = 0; true; $page++) {
             $oldrows = $that->getRecordFromPrimaryKeys($tuples, true, $page);
-            
+
             // loop for limited rows
             $count = count($sqls);
             while (($oldrow = $oldrows->fetch()) !== false) {
                 // to comment
                 $comment = $this->commentize($oldrow);
-                
+
                 // to WHERE string
                 $wheres = array_intersect_key($oldrow, $this->flippedPrimaryKeys);
                 $whereString = $this->buildWhere($wheres);
-                
+
                 // to SQL
                 $sqls[] = "$comment\nDELETE FROM $this->quotedName WHERE $whereString";
             }
-            
+
             // no more rows
             if ($count === count($sqls)) {
                 break;
             }
         }
-        
+
         return $sqls;
     }
 
@@ -198,7 +198,7 @@ class TableScanner
         $columnString = implode(', ', $this->quoteArray(true, array_keys($this->columns)));
         for ($page = 0; true; $page++) {
             $newrows = $that->getRecordFromPrimaryKeys($tuples, false, $page);
-            
+
             // loop for limited rows
             $count = count($sqls);
             while (($newrow = $newrows->fetch()) !== false) {
@@ -217,13 +217,13 @@ class TableScanner
                     $sqls[] = "INSERT INTO $this->quotedName ($columnString) VALUES\n  ($valueString)";
                 }
             }
-            
+
             // no more rows
             if ($count === count($sqls)) {
                 break;
             }
         }
-        
+
         return $sqls;
     }
 
@@ -240,7 +240,7 @@ class TableScanner
         for ($page = 0; true; $page++) {
             $oldrows = $this->getRecordFromPrimaryKeys($tuples, true, $page);
             $newrows = $that->getRecordFromPrimaryKeys($tuples, true, $page);
-            
+
             // loop for limited rows
             $count = count($sqls);
             while (($oldrow = $oldrows->fetch()) !== false && ($newrow = $newrows->fetch()) !== false) {
@@ -248,28 +248,28 @@ class TableScanner
                 if (!($deltas = array_diff_assoc($newrow, $oldrow))) {
                     continue;
                 }
-                
+
                 // to comment
                 $comments = array_intersect_key($oldrow, $deltas);
                 $comment = $this->commentize($comments);
-                
+
                 // to VALUES string
                 $valueString = implode(",\n  ", $this->joinKeyValue($deltas));
-                
+
                 // to WHERE string
                 $wheres = array_intersect_key($newrow, $this->flippedPrimaryKeys);
                 $whereString = $this->buildWhere($wheres);
-                
+
                 // to SQL
                 $sqls[] = "$comment\nUPDATE $this->quotedName SET\n  $valueString\nWHERE $whereString";
             }
-            
+
             // no more rows
             if ($count === count($sqls)) {
                 break;
             }
         }
-        
+
         return $sqls;
     }
 
@@ -287,7 +287,7 @@ class TableScanner
             WHERE    {$this->filterCondition}
             ORDER BY {$this->primaryKeyString}
         ";
-        
+
         $result = array();
         foreach ($this->conn->query($sql) as $row) {
             $id = implode("\t", $row);
@@ -349,7 +349,7 @@ class TableScanner
         if ($page !== null) {
             $stuples = array_slice($tuples, intval($page) * self::$pageCount, self::$pageCount);
         }
-        
+
         // prepare sql of primary key record
         $columns = $ignore ? array_diff_key($this->columns, $this->ignoreColumns) : $this->columns;
         $columnString = implode(', ', $this->quoteArray(true, array_keys($columns)));
@@ -360,7 +360,7 @@ class TableScanner
             WHERE    {$this->filterCondition} AND ($tuplesString)
             ORDER BY {$this->primaryKeyString}
         ";
-        
+
         return $this->conn->query($sql);
     }
 
@@ -410,7 +410,7 @@ class TableScanner
     {
         // for under php 5.4
         $conn = $this->conn;
-        
+
         // quote
         return array_map(function ($val) use ($is_identifier, $conn) {
             return $is_identifier ? $conn->quoteIdentifier($val) : ($val === null ? 'NULL' : $conn->quote($val));
@@ -469,7 +469,7 @@ class TableScanner
         if (count($whereArray) === 0) {
             return "0";
         }
-        
+
         if (count($whereArray, COUNT_RECURSIVE) === count($whereArray)) {
             $and = $this->joinKeyValue($whereArray);
             return '(' . implode(' AND ', $and) . ')';

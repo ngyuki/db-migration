@@ -23,10 +23,10 @@ class TableScannerTest extends AbstractTestCase
     protected function setup()
     {
         parent::setUp();
-        
+
         $table = $this->createSimpleTable('hoge', 'integer', 'id');
         $this->oldSchema->dropAndCreateTable($table);
-        
+
         $this->scanner = new TableScanner($this->old, $table, 'TRUE');
         $this->refClass = new \ReflectionClass($this->scanner);
     }
@@ -45,25 +45,25 @@ class TableScannerTest extends AbstractTestCase
     {
         $condition = $this->invoke('parseCondition', '', '`');
         $this->assertEquals('1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', 'hoge.fuga = 1', '`');
         $this->assertEquals('1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', 'fuga.id = 1', '`');
         $this->assertEquals('1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', '`fuga`.`id` = 1', '`');
         $this->assertEquals('1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', 'hoge.id = 1', '`');
         $this->assertEquals('hoge.id = 1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', 'id = 1', '`');
         $this->assertEquals('id = 1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', '`hoge`.`id` = 1', '`');
         $this->assertEquals('`hoge`.`id` = 1', $condition);
-        
+
         $condition = $this->invoke('parseCondition', '`id` = 1', '`');
         $this->assertEquals('`id` = 1', $condition);
 
@@ -81,7 +81,7 @@ class TableScannerTest extends AbstractTestCase
             'col2' => str_repeat('あ', 100),
             'col3' => null
         ), 10);
-        
+
         $this->assertContains('XXXXXXX...', $comment);
         $this->assertContains('あああ...', $comment);
         $this->assertContains('NULL', $comment);
@@ -93,7 +93,7 @@ class TableScannerTest extends AbstractTestCase
     function getRecordFromPrimaryKeys_empty()
     {
         $rows = $this->invoke('getRecordFromPrimaryKeys', array(), true);
-        
+
         $this->assertCount(0, $rows->fetchAll());
     }
 
@@ -107,12 +107,12 @@ class TableScannerTest extends AbstractTestCase
                 'id' => $i
             );
         }, range(1, 10)));
-        
+
         TableScanner::$pageCount = 4;
-        
+
         $method = 'getRecordFromPrimaryKeys';
         $tuples = $this->scanner->getPrimaryRows();
-        
+
         $this->assertCount(4, $this->invoke($method, $tuples, true, 0)->fetchAll());
         $this->assertCount(4, $this->invoke($method, $tuples, true, 1)->fetchAll());
         $this->assertCount(2, $this->invoke($method, $tuples, true, 2)->fetchAll());

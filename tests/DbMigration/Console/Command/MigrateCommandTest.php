@@ -10,16 +10,16 @@ class MigrateCommandTest extends AbstractTestCase
     protected function setup()
     {
         parent::setUp();
-        
+
         $command = new MigrateCommand();
         $command->setPreMigration('get_class');
         $command->setPostMigration('get_class');
-        
+
         $migtable = $this->createSimpleTable('migtable', 'integer', 'id', 'code');
         $migtable->addUniqueIndex(array(
             'code'
         ), 'unq_index');
-        
+
         $longtable = $this->createSimpleTable('longtable', 'integer', 'id');
         $longtable->addColumn('text_data', 'text');
         $longtable->addColumn('blob_data', 'blob');
@@ -32,7 +32,7 @@ class MigrateCommandTest extends AbstractTestCase
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('igntable', 'integer', 'id', 'code'));
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('unqtable', 'integer', 'id', 'code'));
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('sametable', 'integer', 'id'));
-        
+
         $this->old->insert('migtable', array(
             'id'   => 5,
             'code' => 2
@@ -60,7 +60,7 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains('ALTER TABLE igntable', $result);
         $this->assertContains('DELETE FROM `migtable`', $result);
         $this->assertContains('INSERT INTO `migtable`', $result);
@@ -124,15 +124,15 @@ class MigrateCommandTest extends AbstractTestCase
             '--dsn' => $this->new->getHost(),
             'files' => array()
         ));
-        
+
         $this->assertContains($this->old->getDatabase(), $result);
-        
+
         $result = $this->runApp(array(
             '-vvv'  => true,
             '--dsn' => $this->new->getHost() . '/' . $this->new->getDatabase(),
             'files' => array()
         ));
-        
+
         $this->assertContains($this->new->getDatabase(), $result);
     }
 
@@ -168,7 +168,7 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains('ALTER TABLE igntable', $result);
         $this->assertNotContains('DELETE FROM `migtable`', $result);
         $this->assertNotContains('INSERT INTO `migtable`', $result);
@@ -187,7 +187,7 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertNotContains('ALTER TABLE igntable', $result);
         $this->assertContains('DELETE FROM `migtable`', $result);
         $this->assertContains('INSERT INTO `migtable`', $result);
@@ -228,7 +228,7 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertNotContains('DELETE FROM `migtable`', $result);
         $this->assertNotContains('INSERT INTO `migtable`', $result);
         $this->assertNotContains('UPDATE `migtable` SET', $result);
@@ -297,7 +297,7 @@ class MigrateCommandTest extends AbstractTestCase
                 'code' => 7
             )
         ));
-        
+
         $result = $this->runApp(array(
             '--force' => true,
             'files'   => array(
@@ -305,9 +305,9 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains("key 'unq_index'", $result);
-        
+
         $this->assertExceptionMessage("key 'unq_index'", $this->runApp, array(
             '--force' => false,
             'files'   => array(
@@ -332,7 +332,7 @@ class MigrateCommandTest extends AbstractTestCase
                 'code' => 19
             )
         ));
-        
+
         $result = $this->runApp(array(
             '--force' => true,
             'files'   => array(
@@ -340,11 +340,11 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains("key 'unq_index'", $result);
-        
+
         $count = $this->old->fetchColumn("select COUNT(*) from migtable");
-        
+
         $this->assertExceptionMessage("key 'unq_index'", $this->runApp, array(
             '--force' => false,
             'files'   => array(
@@ -352,7 +352,7 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertEquals($count, $this->old->fetchColumn("select COUNT(*) from migtable"));
     }
 
@@ -369,7 +369,7 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains('difftable    is skipped by has different definition between schema', $result);
         $this->assertContains('nopkeytable  is skipped by has no primary key', $result);
     }
@@ -390,14 +390,14 @@ class MigrateCommandTest extends AbstractTestCase
         $command->setPostMigration(function () use (&$checker) {
             $checker = false;
         });
-        
+
         $this->assertExceptionMessage('pre migration', $this->runApp, array(
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertFalse($checker);
     }
 
@@ -412,14 +412,14 @@ class MigrateCommandTest extends AbstractTestCase
                 'code' => $i * 10
             );
         }, range(1, 1001)));
-        
+
         $result = $this->runApp(array(
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertLessThanOrEqual(1000, substr_count($result, 'DELETE FROM `migtable`'));
     }
 
@@ -433,14 +433,14 @@ class MigrateCommandTest extends AbstractTestCase
             'text_data' => str_pad('', 2048, 'X'),
             'blob_data' => str_pad('', 2048, 'Y')
         ));
-        
+
         $result = $this->runApp(array(
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains('...(omitted)', $result);
     }
 
@@ -457,9 +457,9 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertEmpty($result);
-        
+
         $result = $this->runApp(array(
             '-c'    => true,
             'files' => array(
@@ -467,9 +467,9 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertNotContains('is skipped by no diff', $result);
-        
+
         $result = $this->runApp(array(
             '-c'    => true,
             '-v'    => true,
@@ -514,14 +514,14 @@ class MigrateCommandTest extends AbstractTestCase
         $this->newSchema->dropAndCreateDatabase($this->old->getDatabase());
         $this->old->exec(file_get_contents($this->getFile('table.sql')));
         $this->old->exec(file_get_contents($this->getFile('data.sql')));
-        
+
         $result = $this->runApp(array(
             'files' => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql')
             )
         ));
-        
+
         $this->assertContains('no diff schema', $result);
     }
 

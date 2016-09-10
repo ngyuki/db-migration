@@ -147,7 +147,7 @@ class TransporterTest extends AbstractTestCase
         $this->old->delete('fuga', array(0));
         $this->insertMultiple($this->old, 'fuga', array_map(function ($i) {
             return array(
-                'id'    => $i,
+                'id' => $i,
             );
         }, range(1, 10)));
 

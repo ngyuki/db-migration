@@ -41,7 +41,7 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
             /** @noinspection PhpUndefinedMethodInspection */
             return parent::__get($name);
         }
-        
+
         // if exsists method and @closurable, return that closure
         if (method_exists($this, $name)) {
             $refclass = new \ReflectionClass($this);
@@ -56,17 +56,17 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
     protected function setUp()
     {
         parent::setUp();
-        
+
         // drop schema
         $this->connection = $this->getConnection('old', '');
         $schema = $this->connection->getSchemaManager();
         $schema->dropAndCreateDatabase($GLOBALS['old_db_name']);
         $schema->dropAndCreateDatabase($GLOBALS['new_db_name']);
-        
+
         // get connection
         $this->old = $this->getConnection('old');
         $this->new = $this->getConnection('new');
-        
+
         // get schema
         $this->oldSchema = $this->old->getSchemaManager();
         $this->newSchema = $this->new->getSchemaManager();
@@ -90,7 +90,7 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
             'username' => "{$prefix}_db_username",
             'password' => "{$prefix}_db_password"
         );
-        
+
         $params = array(
             'driver'   => $GLOBALS[$g_keys['type']],
             'host'     => $GLOBALS[$g_keys['host']],
@@ -99,7 +99,7 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
             'user'     => $GLOBALS[$g_keys['username']],
             'password' => $GLOBALS[$g_keys['password']]
         );
-        
+
         if ($dbname !== null) {
             $params['dbname'] = $dbname;
         }
@@ -123,14 +123,14 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
     public function insertMultiple(Connection $conn, $table, $records)
     {
         $conn->beginTransaction();
-        
+
         foreach ($records as $record) {
             if (is_string($record)) {
                 $record = json_decode($record, true);
             }
             $conn->insert($table, $record);
         }
-        
+
         $conn->commit();
     }
 

@@ -31,29 +31,29 @@ class MigratorTest extends AbstractTestCase
     protected function setup()
     {
         parent::setUp();
-        
+
         // create migration table different name
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('hoge', 'integer', 'id'));
         $this->newSchema->dropAndCreateTable($this->createSimpleTable('fuga', 'integer', 'id'));
-        
+
         // create migration table no pkey
         $table = $this->createSimpleTable('nopkey', 'integer', 'id');
         $table->dropPrimaryKey();
         $this->oldSchema->dropAndCreateTable($table);
         $this->newSchema->dropAndCreateTable($table);
-        
+
         // create migration table different pkey
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('diffpkey', 'integer', 'id'));
         $this->newSchema->dropAndCreateTable($this->createSimpleTable('diffpkey', 'integer', 'seq'));
-        
+
         // create migration table different column
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('diffcolumn', 'integer', 'id'));
         $this->newSchema->dropAndCreateTable($this->createSimpleTable('diffcolumn', 'integer', 'id', 'seq'));
-        
+
         // create migration table different type
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('difftype', 'string', 'id'));
         $this->newSchema->dropAndCreateTable($this->createSimpleTable('difftype', 'integer', 'id'));
-        
+
         // create migration table different record
         $table = $this->createSimpleTable('foo', 'integer', 'id');
         $table->addColumn('c_int', 'integer');
@@ -61,10 +61,10 @@ class MigratorTest extends AbstractTestCase
         $table->addColumn('c_varchar', 'string');
         $table->addColumn('c_text', 'text');
         $table->addColumn('c_datetime', 'datetime');
-        
+
         $this->oldSchema->dropAndCreateTable($table);
         $this->newSchema->dropAndCreateTable($table);
-        
+
         $this->insertMultiple($this->old, 'foo', array(
             '{"id":0,"c_int":1,"c_float":1.2,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
             '{"id":1,"c_int":2,"c_float":1,"c_varchar":"char","c_text":"text","c_datetime":"2000-01-01 00:00:00"}',
@@ -97,7 +97,7 @@ class MigratorTest extends AbstractTestCase
     function migrate_ddl()
     {
         $ddls = Migrator::getDDL($this->old, $this->new);
-        
+
         $this->assertContainsString('CREATE TABLE fuga', $ddls);
         $this->assertContainsString('DROP TABLE hoge', $ddls);
     }
@@ -109,7 +109,7 @@ class MigratorTest extends AbstractTestCase
     {
         $dmls = $this->getDML($this->old, $this->new, 'foo', '1');
         $this->assertCount(11, $dmls);
-        
+
         foreach ($dmls as $sql) {
             $this->old->exec($sql);
         }
@@ -160,7 +160,7 @@ class MigratorTest extends AbstractTestCase
     function migrate_dml_name()
     {
         $e = new SchemaException("There is no table with name", SchemaException::TABLE_DOESNT_EXIST);
-        
+
         $this->assertException($e, $this->getDML, $this->old, $this->new, 'notable', '1');
     }
 
@@ -170,7 +170,7 @@ class MigratorTest extends AbstractTestCase
     function migrate_dml_nopkey()
     {
         $e = new MigrationException("has no primary key");
-        
+
         $this->assertException($e, $this->getDML, $this->old, $this->new, 'nopkey', '1');
     }
 
