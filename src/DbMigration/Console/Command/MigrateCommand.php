@@ -3,7 +3,7 @@ namespace ryunosuke\DbMigration\Console\Command;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use ryunosuke\DbMigration\Generator;
+use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\MigrationException;
 use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Console\Command\Command;
@@ -306,7 +306,7 @@ EOT
         $output->writeln("-- <comment>diff DDL</comment>");
         
         // get ddl
-        $sqls = Generator::getDDL($srcConn, $dstConn, $includes, $excludes);
+        $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes);
         if (!$sqls) {
             $output->writeln("-- no diff schema.");
             return;
@@ -408,7 +408,7 @@ EOT
             // get dml
             $sqls = null;
             try {
-                $sqls = Generator::getDML($srcConn, $dstConn, $table, $wheres, $ignores);
+                $sqls = Migrator::getDML($srcConn, $dstConn, $table, $wheres, $ignores);
             }
             catch (MigrationException $ex) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {

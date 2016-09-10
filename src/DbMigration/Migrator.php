@@ -6,7 +6,7 @@ use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Schema\Comparator;
 use Doctrine\DBAL\Schema\Schema;
 
-class Generator
+class Migrator
 {
     /**
      * diff schema, get DDL

@@ -3,10 +3,10 @@ namespace ryunosuke\Test\DbMigration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\SchemaException;
-use ryunosuke\DbMigration\Generator;
+use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\MigrationException;
 
-class GeneratorTest extends AbstractTestCase
+class MigratorTest extends AbstractTestCase
 {
     /**
      * @var Connection
@@ -25,7 +25,7 @@ class GeneratorTest extends AbstractTestCase
      */
     private function getDML($old, $new, $table, $wheres = array(), $ignroes = array())
     {
-        return Generator::getDML($old, $new, $table, (array) $wheres, (array) $ignroes);
+        return Migrator::getDML($old, $new, $table, (array) $wheres, (array) $ignroes);
     }
 
     protected function setup()
@@ -96,7 +96,7 @@ class GeneratorTest extends AbstractTestCase
      */
     function migrate_ddl()
     {
-        $ddls = Generator::getDDL($this->old, $this->new);
+        $ddls = Migrator::getDDL($this->old, $this->new);
         
         $this->assertContainsString('CREATE TABLE fuga', $ddls);
         $this->assertContainsString('DROP TABLE hoge', $ddls);
