@@ -5,6 +5,7 @@ use Doctrine\DBAL\DriverManager;
 // ===== start migration cli-config =====
 
 // add dbal subcommand
+$commands[] = new \ryunosuke\DbMigration\Console\Command\GenerateCommand();
 $commands[] = $migrateCommand = new \ryunosuke\DbMigration\Console\Command\MigrateCommand();
 
 // register pre migration procedure

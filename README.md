@@ -10,6 +10,7 @@ DB Migration
 ```bash
 $ mysql -e "DROP DATABASE IF EXISTS test_demo_migration;CREATE DATABASE test_demo_migration;"
 $ vendor/bin/doctrine-dbal dbal:import demo/current/*
+$ vendor/bin/doctrine-dbal dbal:generate /tmp/schema.yml /tmp/RecordTable.yml -v
 $ vendor/bin/doctrine-dbal dbal:migrate demo/latest/* --check -v
 ```
 
@@ -65,6 +66,71 @@ INSERT INTO `RecordTable` (`id`, `name`, `value`) VALUES
 原則として比較元は常に cli-config.php で設定された connection になります。
 比較先は引数で指定します。
 
+コマンドは下記2つです。
+
+### dbal:generate
+
+cli-config.php で設定された connection のスキーマとレコードを、指定したファイルに出力します。
+
+引数は下記。
+
+```
+Arguments:
+ files                  Definitation files. First argument is meaned schema.
+
+Options:
+ -w, --where[=WHERE]    Where condition. (multiple values allowed)
+ -g, --ignore[=IGNORE]  Ignore column. (multiple values allowed)
+ -h, --help             Display this help message
+ -q, --quiet            Do not output any message
+ -V, --version          Display this application version
+     --ansi             Force ANSI output
+     --no-ansi          Disable ANSI output
+ -n, --no-interaction   Do not ask any interactive question
+ -v|vv|vvv, --verbose   Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+```
+
+files 引数でエクスポートするファイルを指定します。
+
+`--help` 以下は dbal 標準のプションです。
+
+#### files
+
+1つ目のファイルは DDL として出力されます。主にテーブル定義と外部キー制約です。
+2つ目以降のファイルは DDL として出力されます。要するにレコード配列です。
+
+ファイル名とテーブル名が対応します（hoge.sql で hoge テーブルが対象）。
+
+そのとき、拡張子で挙動が変わります。
+
+- .sql プレーンな SQL で出力します
+- .php php の配列で出力します
+- .json json 形式で出力します
+- .yaml yaml 形式で出力します
+- 上記以外は例外
+
+#### --where (-w)
+
+DML 差分対象の WHERE 文を指定します。
+このオプションで指定したレコードがエクスポートされます。
+
+`-w table.column = 99` のように指定するとそのテーブルのみで適用されます。
+`-w column = 99` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
+識別子はクオートしても構いません。
+
+#### --ignore (-g)
+
+無視のカラム名を指定します。
+このオプションで指定したカラムは空文字列で出力されるようになります。
+
+`-g table.column` のように指定するとそのテーブルのみで適用されます。
+`-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
+識別子はクオートしても構いません。
+
+### dbal:migrate
+
+cli-config.php で設定された connection と、指定したファイルで一時スキーマとの比較を取ります。
+
 引数は下記。
 
 ```
@@ -100,7 +166,7 @@ files 引数でインポートする sql ファイルを指定します。
 
 オプションは基本的に名前のとおりですが、いくつか難解なオプションがあるので説明を加えます。
 
-### --target
+#### --target
 
 マイグレーション対象のデーターベースを DSN で指定します。
 未指定時は `cli-config` で指定されたデータベースになります。
@@ -111,7 +177,7 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 前述の「原則として～」を覆す唯一のオプションです。
 このオプションを指定しないかぎり比較元は常に cli-config の connection です。
 
-### --dsn (-d)
+#### --dsn (-d)
 
 基本的には SQL ファイルの更新日時を元にしたランダムな一時スキーマを作成し、そこへファイルをインポートしてから差分を取りますが、このオプションを指定するとスキーマを作成せず、指定した DSN へ接続してそことの差分を取ります。
 要するに「動いている DB から動いている DB」へマイグレーションするオプションです。
@@ -121,7 +187,7 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 
 このオプションが指定された場合、引数の files は不要です。
 
-### --schema (-s)
+#### --schema (-s)
 
 上記の通り、比較対象として一時スキーマを作成しますが、そのスキーマ名を指定するオプションです。
 
@@ -130,7 +196,7 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 
 省略すると SQL ファイルの更新日時を元にしたランダムな一時スキーマ名になります。
 
-### --include, --exclude
+#### --include, --exclude
 
 差分対象テーブルを指定します。正規表現です。
 
@@ -140,7 +206,7 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 このオプションは特別なことをしない限り **DML のみに適用**されます。
 ALTER 文などの DDL は普通に出力されます（後述参照）。
 
-### --where (-w)
+#### --where (-w)
 
 DML 差分対象の WHERE 文を指定します。
 このオプションで指定したレコードが DML 差分対象になります。
@@ -149,7 +215,7 @@ DML 差分対象の WHERE 文を指定します。
 `-w column = 99` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
 
-### --ignore (-g)
+#### --ignore (-g)
 
 DML 差分対象のカラム名を指定します。
 このオプションで指定したカラムが DML 差分対象になります。
@@ -159,24 +225,26 @@ DML 差分対象のカラム名を指定します。
 `-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
 
-### --rebuild (-r)
+#### --rebuild (-r)
 
 一時スキーマが存在する場合、それをドロップした後に SQL ファイルを流し込みます。
 逆にこのオプションを指定しなかった場合、SQL ファイルは使用されませんし、一時スキーマに変更も加えません。
 
-### --keep (-k)
+#### --keep (-k)
 
 ファイルから生成した一時スキーマを消さずに維持します。
 いちいち生成・削除を繰り返していると重いので検証作業中などはこのオプションを指定したほうが良いです。
 
-### --no-interaction (-n)
+#### --no-interaction (-n)
 
 指定すると確認メッセージを出さずに SQL を直接実行します。
 
-## Popular Usage
+### Popular Usage
 
-DSN 周りを要約すると、よくある使い方は下記のようになります。
+要約すると、よくある使い方は下記のようになります。
 
+- vendor/bin/doctrine-dbal dbal:generate database.sql records.sql
+  - cli-config の接続先を database.sql へ出力します。records.sql にはレコードが出力されます。
 - vendor/bin/doctrine-dbal dbal:migrate sqlfiles
   - cli-config の接続先を sqlfiles にマイグレーションします。cli-config 先にランダムな一時スキーマが生成されます。
 - vendor/bin/doctrine-dbal dbal:migrate sqlfiles --target remotehost/dbname

@@ -12,6 +12,12 @@ mysql -e "DROP DATABASE IF EXISTS test_demo_migration;CREATE DATABASE test_demo_
 techo "import current database definitation. (imitate running database)"
 vendor/bin/doctrine-dbal dbal:import demo/current/*
 
+techo "generate current database definitation and records. (as sql)"
+vendor/bin/doctrine-dbal dbal:generate /tmp/schema.sql /tmp/RecordTable.sql -v
+
+techo "generate current database definitation and records. (as yml)"
+vendor/bin/doctrine-dbal dbal:generate /tmp/schema.yml /tmp/RecordTable.yml -v
+
 techo "migrate latest database definitation. (exe no-interaction)"
 vendor/bin/doctrine-dbal dbal:migrate demo/latest/* --no-interaction -v -k
 
