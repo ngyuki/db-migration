@@ -1,20 +1,11 @@
 <?php
 namespace ryunosuke\Test\DbMigration\Console\Command;
 
-use Doctrine\DBAL\Tools\Console\Helper\ConnectionHelper;
 use ryunosuke\DbMigration\Console\Command\MigrateCommand;
-use ryunosuke\Test\DbMigration\AbstractTestCase;
-use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Helper\HelperSet;
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\BufferedOutput;
 
 class MigrateCommandTest extends AbstractTestCase
 {
-    /**
-     * @var Application
-     */
-    private $app;
+    protected $commandName = 'migrate';
 
     protected function setup()
     {
@@ -53,45 +44,8 @@ class MigrateCommandTest extends AbstractTestCase
         $this->old->insert('sametable', array(
             'id' => 9
         ));
-        
-        $helperSet = new HelperSet(array(
-            'db' => new ConnectionHelper($this->old)
-        ));
-        
-        $this->app = new Application('Test');
-        $this->app->setCatchExceptions(false);
-        $this->app->setAutoExit(false);
-        $this->app->setHelperSet($helperSet);
+
         $this->app->add($command);
-    }
-
-    private function getFile($filename)
-    {
-        if ($filename !== null) {
-            $filename = "\\_files\\$filename";
-        }
-        return str_replace('\\', '/', __DIR__ . $filename);
-    }
-
-    /**
-     * @closurable
-     * @param array $inputArray
-     * @return string
-     */
-    private function runApp($inputArray)
-    {
-        $inputArray = array(
-                'command' => 'dbal:migrate'
-            ) + $inputArray + array(
-                '-n' => true
-            );
-        
-        $input = new ArrayInput($inputArray);
-        $output = new BufferedOutput();
-        
-        $this->app->run($input, $output);
-
-        return $output->fetch();
     }
 
     /**
@@ -238,6 +192,21 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains('DELETE FROM `migtable`', $result);
         $this->assertContains('INSERT INTO `migtable`', $result);
         $this->assertContains('UPDATE `migtable` SET', $result);
+    }
+
+    /**
+     * @test
+     */
+    function run_type_dml_ex()
+    {
+        $this->assertExceptionMessage("very invalid sql", $this->runApp, array(
+            '--type'    => 'dml',
+            '--rebuild' => true,
+            'files'     => array(
+                $this->getFile('table.sql'),
+                $this->getFile('invalid.sql')
+            )
+        ));
     }
 
     /**

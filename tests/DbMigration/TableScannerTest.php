@@ -92,7 +92,7 @@ class TableScannerTest extends AbstractTestCase
      */
     function getRecordFromPrimaryKeys_empty()
     {
-        $rows = $this->invoke('getRecordFromPrimaryKeys', array());
+        $rows = $this->invoke('getRecordFromPrimaryKeys', array(), true);
         
         $this->assertCount(0, $rows->fetchAll());
     }
@@ -113,10 +113,37 @@ class TableScannerTest extends AbstractTestCase
         $method = 'getRecordFromPrimaryKeys';
         $tuples = $this->scanner->getPrimaryRows();
         
-        $this->assertCount(4, $this->invoke($method, $tuples, 0)->fetchAll());
-        $this->assertCount(4, $this->invoke($method, $tuples, 1)->fetchAll());
-        $this->assertCount(2, $this->invoke($method, $tuples, 2)->fetchAll());
-        $this->assertCount(0, $this->invoke($method, $tuples, 3)->fetchAll());
+        $this->assertCount(4, $this->invoke($method, $tuples, true, 0)->fetchAll());
+        $this->assertCount(4, $this->invoke($method, $tuples, true, 1)->fetchAll());
+        $this->assertCount(2, $this->invoke($method, $tuples, true, 2)->fetchAll());
+        $this->assertCount(0, $this->invoke($method, $tuples, true, 3)->fetchAll());
+    }
+
+    /**
+     * @test
+     */
+    function fillDefaultValue()
+    {
+        $con = DriverManager::getConnection(array('pdo' => new \PDO('sqlite::memory:')));
+
+        $table = new Table('deftable',
+            array(
+                new Column('id', Type::getType('integer')),
+                new Column('havedef', Type::getType('integer'), array('default' => 9)),
+                new Column('nullable', Type::getType('integer'), array('notnull' => false)),
+            ),
+            array(new Index('PRIMARY', array('id'), true, true))
+        );
+
+        $con->getSchemaManager()->dropAndCreateTable($table);
+
+        $scanner = new TableScanner($con, $table, '1');
+
+        $this->assertEquals(array(
+            'id'       => 0,
+            'havedef'  => 9,
+            'nullable' => null,
+        ), $scanner->fillDefaultValue(array()));
     }
 
     /**

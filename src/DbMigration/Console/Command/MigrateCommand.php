@@ -3,14 +3,16 @@ namespace ryunosuke\DbMigration\Console\Command;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use ryunosuke\DbMigration\Generator;
+use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\MigrationException;
+use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\Question;
 
 class MigrateCommand extends Command
 {
@@ -232,19 +234,20 @@ EOT
                 $this->doCallback(1, $dstConn);
                 
                 // import sql files from argument
-                foreach ($files as $filename) {
-                    $dstConn->beginTransaction();
-                    
-                    try {
-                        $dstConn->exec(file_get_contents($filename));
-                        $dstConn->commit();
+                $transporter = new Transporter($dstConn);
+                $transporter->importDDL(array_shift($files));
+                $dstConn->beginTransaction();
+                try {
+                    foreach ($files as $filename) {
+                        $transporter->importDML($filename);
                     }
-                    catch (\Exception $e) {
-                        $dstConn->rollBack();
-                        throw $e;
-                    }
+                    $dstConn->commit();
                 }
-                
+                catch (\Exception $ex) {
+                    $dstConn->rollBack();
+                    throw $ex;
+                }
+
                 $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
             }
             else {
@@ -259,7 +262,7 @@ EOT
     {
         $autoyes = $input->getOption('no-interaction');
         $keepdb = $input->getOption('dsn') || $input->getOption('keep');
-        $dialog = new DialogHelper();
+        $confirm = new QuestionHelper();
         
         // drop destination database
         if (!$keepdb) {
@@ -274,7 +277,7 @@ EOT
             $target = $srcConn->getDatabase();
             foreach ($schemer->listDatabases() as $database) {
                 if (preg_match("/^{$target}_[0-9a-f]{32}$/", $database)) {
-                    if ($autoyes || $dialog->askConfirmation($output, "<question>drop '$database'(this probably is garbage)?(y/n):</question>", false)) {
+                    if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question("<question>drop '$database'(this probably is garbage)?(y/N):</question>", 'n')))) {
                         $schemer->dropDatabase($database);
                         $output->writeln("-- <info>$database</info> <comment>is dropped.</comment>");
                     }
@@ -297,13 +300,13 @@ EOT
         
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
-        
-        $dialog = new DialogHelper();
+
+        $confirm = new QuestionHelper();
         
         $output->writeln("-- <comment>diff DDL</comment>");
         
         // get ddl
-        $sqls = Generator::getDDL($srcConn, $dstConn, $includes, $excludes);
+        $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes);
         if (!$sqls) {
             $output->writeln("-- no diff schema.");
             return;
@@ -314,7 +317,7 @@ EOT
             $this->writeSql($input, $output, $sql, true, ";");
             
             // exec if noconfirm or confirm answer is "y"
-            if ($autoyes || $dialog->askConfirmation($output, '<question>exec this query?(y/n):</question>', false)) {
+            if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(y/N):</question>', 'n')))) {
                 if (!$dryrun) {
                     try {
                         $srcConn->exec($sql);
@@ -346,8 +349,8 @@ EOT
         $excludes = (array) $input->getOption('exclude');
         $wheres = (array) $input->getOption('where') ?: array();
         $ignores = (array) $input->getOption('ignore') ?: array();
-        
-        $dialog = new DialogHelper();
+
+        $confirm = new QuestionHelper();
         
         $output->writeln("-- <comment>diff DML</comment>");
         
@@ -405,7 +408,7 @@ EOT
             // get dml
             $sqls = null;
             try {
-                $sqls = Generator::getDML($srcConn, $dstConn, $table, $wheres, $ignores);
+                $sqls = Migrator::getDML($srcConn, $dstConn, $table, $wheres, $ignores);
             }
             catch (MigrationException $ex) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
@@ -435,7 +438,7 @@ EOT
             
             // exec if noconfirm or confirm answer is "y"
             $dmlflag = true;
-            if ($autoyes || $dialog->askConfirmation($output, '<question>exec this query?(y/n):</question>', true)) {
+            if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(Y/n):</question>', 'y')))) {
                 if (!$dryrun) {
                     $srcConn->beginTransaction();
                     
@@ -488,9 +491,9 @@ EOT
         if ($formatting) {
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+?\()(.+)/su', "$1\n  $4", $sql);
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+)(\))/su', "$1\n$4", $sql);
-            
+
             $sql = preg_replace('/(ALTER TABLE .+?) ((ADD|DROP|CHANGE|MODIFY).+)/su', "$1\n  $2", $sql);
-            
+
             $sql = preg_replace('/(, )([^\\d])/u', ",\n  $2", $sql);
         }
         

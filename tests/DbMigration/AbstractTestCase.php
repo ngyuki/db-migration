@@ -8,6 +8,8 @@ use Doctrine\DBAL\Schema\Table;
 
 abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
 {
+    protected static $tmpdir;
+
     /**
      * @var Connection
      */
@@ -17,6 +19,14 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
      * @var AbstractSchemaManager
      */
     protected $oldSchema, $newSchema;
+
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+
+        self::$tmpdir = sys_get_temp_dir() . '/ryumig';
+        is_dir(self::$tmpdir) or mkdir(self::$tmpdir, 0777, true);
+    }
 
     /**
      * for get closure of method
@@ -62,6 +72,14 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
         $this->newSchema = $this->new->getSchemaManager();
     }
 
+    public function tearDown()
+    {
+        parent::tearDown();
+        $this->connection->close();
+        $this->old->close();
+        $this->new->close();
+    }
+
     public function getConnection($prefix, $dbname = null)
     {
         $g_keys = array(
@@ -85,7 +103,7 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
         if ($dbname !== null) {
             $params['dbname'] = $dbname;
         }
-        
+
         return DriverManager::getConnection($params);
     }
 
@@ -157,5 +175,15 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
         elseif (is_string($haystack)) {
             self::assertContains($needle, $haystack, $message);
         }
+    }
+
+    public static function assertFileContains($needle, $haystack, $message = '')
+    {
+        self::assertContains($needle, file_get_contents($haystack), $message);
+    }
+
+    public static function assertFileNotContains($needle, $haystack, $message = '')
+    {
+        self::assertNotContains($needle, file_get_contents($haystack), $message);
     }
 }
