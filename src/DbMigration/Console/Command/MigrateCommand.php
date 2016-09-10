@@ -7,11 +7,12 @@ use ryunosuke\DbMigration\Generator;
 use ryunosuke\DbMigration\MigrationException;
 use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\Question;
 
 class MigrateCommand extends Command
 {
@@ -261,7 +262,7 @@ EOT
     {
         $autoyes = $input->getOption('no-interaction');
         $keepdb = $input->getOption('dsn') || $input->getOption('keep');
-        $dialog = new DialogHelper();
+        $confirm = new QuestionHelper();
         
         // drop destination database
         if (!$keepdb) {
@@ -276,7 +277,7 @@ EOT
             $target = $srcConn->getDatabase();
             foreach ($schemer->listDatabases() as $database) {
                 if (preg_match("/^{$target}_[0-9a-f]{32}$/", $database)) {
-                    if ($autoyes || $dialog->askConfirmation($output, "<question>drop '$database'(this probably is garbage)?(y/n):</question>", false)) {
+                    if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question("<question>drop '$database'(this probably is garbage)?(y/N):</question>", 'n')))) {
                         $schemer->dropDatabase($database);
                         $output->writeln("-- <info>$database</info> <comment>is dropped.</comment>");
                     }
@@ -299,8 +300,8 @@ EOT
         
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
-        
-        $dialog = new DialogHelper();
+
+        $confirm = new QuestionHelper();
         
         $output->writeln("-- <comment>diff DDL</comment>");
         
@@ -316,7 +317,7 @@ EOT
             $this->writeSql($input, $output, $sql, true, ";");
             
             // exec if noconfirm or confirm answer is "y"
-            if ($autoyes || $dialog->askConfirmation($output, '<question>exec this query?(y/n):</question>', false)) {
+            if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(y/N):</question>', 'n')))) {
                 if (!$dryrun) {
                     try {
                         $srcConn->exec($sql);
@@ -348,8 +349,8 @@ EOT
         $excludes = (array) $input->getOption('exclude');
         $wheres = (array) $input->getOption('where') ?: array();
         $ignores = (array) $input->getOption('ignore') ?: array();
-        
-        $dialog = new DialogHelper();
+
+        $confirm = new QuestionHelper();
         
         $output->writeln("-- <comment>diff DML</comment>");
         
@@ -437,7 +438,7 @@ EOT
             
             // exec if noconfirm or confirm answer is "y"
             $dmlflag = true;
-            if ($autoyes || $dialog->askConfirmation($output, '<question>exec this query?(y/n):</question>', true)) {
+            if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(Y/n):</question>', 'y')))) {
                 if (!$dryrun) {
                     $srcConn->beginTransaction();
                     
