@@ -5,6 +5,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use ryunosuke\DbMigration\Generator;
 use ryunosuke\DbMigration\MigrationException;
+use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\DialogHelper;
 use Symfony\Component\Console\Input\InputArgument;
@@ -232,19 +233,20 @@ EOT
                 $this->doCallback(1, $dstConn);
                 
                 // import sql files from argument
-                foreach ($files as $filename) {
-                    $dstConn->beginTransaction();
-                    
-                    try {
-                        $dstConn->exec(file_get_contents($filename));
-                        $dstConn->commit();
+                $transporter = new Transporter($dstConn);
+                $transporter->importDDL(array_shift($files));
+                $dstConn->beginTransaction();
+                try {
+                    foreach ($files as $filename) {
+                        $transporter->importDML($filename);
                     }
-                    catch (\Exception $e) {
-                        $dstConn->rollBack();
-                        throw $e;
-                    }
+                    $dstConn->commit();
                 }
-                
+                catch (\Exception $ex) {
+                    $dstConn->rollBack();
+                    throw $ex;
+                }
+
                 $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
             }
             else {
@@ -488,9 +490,9 @@ EOT
         if ($formatting) {
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+?\()(.+)/su', "$1\n  $4", $sql);
             $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+)(\))/su', "$1\n$4", $sql);
-            
+
             $sql = preg_replace('/(ALTER TABLE .+?) ((ADD|DROP|CHANGE|MODIFY).+)/su', "$1\n  $2", $sql);
-            
+
             $sql = preg_replace('/(, )([^\\d])/u', ",\n  $2", $sql);
         }
         
