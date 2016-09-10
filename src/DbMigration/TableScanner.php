@@ -60,11 +60,6 @@ class TableScanner
     private $primaryKeyString;
 
     /**
-     * @var string
-     */
-    private $columnString;
-
-    /**
      * constructor
      *
      * @param Connection $conn
@@ -88,17 +83,11 @@ class TableScanner
         $this->quotedName = $conn->quoteIdentifier($this->table->getName());
         $this->primaryKeys = $this->table->getPrimaryKeyColumns();
         $this->flippedPrimaryKeys = array_flip($this->primaryKeys);
-        
-        // column to array(ColumnNanme => Column)
-        $this->columns = array();
-        foreach ($table->getColumns() as $column) {
-            $this->columns[$column->getName()] = $column;
-        }
-        
-        // to string
         $this->primaryKeyString = implode(', ', $this->quoteArray(true, $this->primaryKeys));
-        $this->columnString = implode(', ', $this->quoteArray(true, array_keys($this->columns)));
-        
+
+        // column to array(ColumnNanme => Column)
+        $this->columns = $table->getColumns();
+
         // parse condition
         $this->filterCondition = $this->parseCondition($filterCondition, $ichar);
 
@@ -110,9 +99,23 @@ class TableScanner
                 list($modifier, $icol) = explode('.', $icol);
             }
             if (str_replace(array('`', '"', '[', ']'), '', $modifier) === $table->getName()) {
-                $this->ignoreColumns[] = str_replace(array('`', '"', '[', ']'), '', $icol);
+                $this->ignoreColumns[str_replace(array('`', '"', '[', ']'), '', $icol)] = true;
             }
         }
+    }
+
+    public function switchBufferedQuery($flag)
+    {
+        $pdo = $this->conn->getWrappedConnection();
+        $bufferedSupport = $pdo instanceof \PDO && $this->conn->getDatabasePlatform() instanceof MySqlPlatform;
+        $return = null;
+
+        if ($bufferedSupport) {
+            $return = $pdo->getAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY);
+            $pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, $flag);
+        }
+
+        return $return;
     }
 
     /**
@@ -156,7 +159,7 @@ class TableScanner
     {
         $sqls = array();
         for ($page = 0; true; $page++) {
-            $oldrows = $that->getRecordFromPrimaryKeys($tuples, $page);
+            $oldrows = $that->getRecordFromPrimaryKeys($tuples, true, $page);
             
             // loop for limited rows
             $count = count($sqls);
@@ -192,8 +195,9 @@ class TableScanner
     {
         $isMysql = $this->conn->getDatabasePlatform() instanceof MySqlPlatform;
         $sqls = array();
+        $columnString = implode(', ', $this->quoteArray(true, array_keys($this->columns)));
         for ($page = 0; true; $page++) {
-            $newrows = $that->getRecordFromPrimaryKeys($tuples, $page);
+            $newrows = $that->getRecordFromPrimaryKeys($tuples, false, $page);
             
             // loop for limited rows
             $count = count($sqls);
@@ -210,7 +214,7 @@ class TableScanner
                     $valueString = implode(', ', $this->quoteArray(false, $newrow));
 
                     // to SQL
-                    $sqls[] = "INSERT INTO $this->quotedName ($this->columnString) VALUES\n  ($valueString)";
+                    $sqls[] = "INSERT INTO $this->quotedName ($columnString) VALUES\n  ($valueString)";
                 }
             }
             
@@ -234,15 +238,12 @@ class TableScanner
     {
         $sqls = array();
         for ($page = 0; true; $page++) {
-            $oldrows = $this->getRecordFromPrimaryKeys($tuples, $page);
-            $newrows = $that->getRecordFromPrimaryKeys($tuples, $page);
+            $oldrows = $this->getRecordFromPrimaryKeys($tuples, true, $page);
+            $newrows = $that->getRecordFromPrimaryKeys($tuples, true, $page);
             
             // loop for limited rows
             $count = count($sqls);
             while (($oldrow = $oldrows->fetch()) !== false && ($newrow = $newrows->fetch()) !== false) {
-                $this->filterIgnoreColumn($oldrow);
-                $this->filterIgnoreColumn($newrow);
-
                 // no diff row
                 if (!($deltas = array_diff_assoc($newrow, $oldrow))) {
                     continue;
@@ -292,17 +293,57 @@ class TableScanner
             $id = implode("\t", $row);
             $result[$id] = $row;
         }
+
         return $result;
+    }
+
+    /**
+     * get all rows
+     *
+     * @return \PDOStatement
+     */
+    public function getAllRows()
+    {
+        // fetch records values
+        $columnString = implode(', ', $this->quoteArray(true, array_keys(array_diff_key($this->columns, $this->ignoreColumns))));
+        $sql = "
+            SELECT   {$columnString}
+            FROM     {$this->quotedName}
+            WHERE    {$this->filterCondition}
+            ORDER BY {$this->primaryKeyString}
+        ";
+
+        return $this->conn->query($sql);
+    }
+
+    public function fillDefaultValue($row)
+    {
+        $platform = $this->conn->getDatabasePlatform();
+        foreach ($this->columns as $name => $column) {
+            if (!array_key_exists($name, $row)) {
+                if ($column->getDefault() !== null) {
+                    $row[$name] = $column->getDefault();
+                }
+                else if (!$column->getNotnull()) {
+                    $row[$name] = null;
+                }
+                else {
+                    $row[$name] = $column->getType()->convertToPHPValue('', $platform);
+                }
+            }
+        }
+        return $row;
     }
 
     /**
      * get record from primary key tuples
      *
      * @param array $tuples
+     * @param bool $ignore
      * @param int $page
      * @return \Doctrine\DBAL\Driver\Statement
      */
-    private function getRecordFromPrimaryKeys(array $tuples, $page = null)
+    private function getRecordFromPrimaryKeys(array $tuples, $ignore, $page = null)
     {
         $stuples = $tuples;
         if ($page !== null) {
@@ -310,9 +351,11 @@ class TableScanner
         }
         
         // prepare sql of primary key record
+        $columns = $ignore ? array_diff_key($this->columns, $this->ignoreColumns) : $this->columns;
+        $columnString = implode(', ', $this->quoteArray(true, array_keys($columns)));
         $tuplesString = $this->buildWhere($stuples);
         $sql = "
-            SELECT   {$this->columnString}
+            SELECT   {$columnString}
             FROM     {$this->quotedName}
             WHERE    {$this->filterCondition} AND ($tuplesString)
             ORDER BY {$this->primaryKeyString}
@@ -352,15 +395,8 @@ class TableScanner
         if ($wheres) {
             return implode(' AND ', $wheres);
         }
-        
-        return '1';
-    }
 
-    private function filterIgnoreColumn(&$row)
-    {
-        foreach ($this->ignoreColumns as $icol) {
-            unset($row[$icol]);
-        }
+        return '1';
     }
 
     /**
