@@ -68,7 +68,10 @@ class Transporter
         }
         else {
             // generate schema array
-            $schemaArray = array();
+            $schemaArray = array(
+                'platform' => $this->platform->getName(),
+                'table'    => array(),
+            );
             foreach ($this->schema->getTables() as $table) {
                 $tarray = $this->tableToArray($table);
                 $schemaArray['table'][$table->getName()] = $tarray;
@@ -172,6 +175,12 @@ class Transporter
             case 'yaml':
                 $schemaArray = Yaml::parse(file_get_contents($filename));
                 break;
+        }
+
+        if (isset($schemaArray['platform']) && $schemaArray['platform']) {
+            if ($schemaArray['platform'] !== $this->platform->getName()) {
+                throw new \RuntimeException('platform is different.');
+            }
         }
 
         $creates = $alters = array();
