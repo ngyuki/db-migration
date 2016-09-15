@@ -137,6 +137,14 @@ class TransporterTest extends AbstractTestCase
         $this->assertException(new \DomainException("is not supported"), function () {
             $this->transporter->importDDL(self::$tmpdir . '/table.ext');
         });
+
+        $this->assertException(new \RuntimeException("platform is different"), function () {
+            $this->transporter->exportDDL(self::$tmpdir . "/table.json");
+            $schema = json_decode(file_get_contents(self::$tmpdir . "/table.json"), true);
+            $schema['platform'] = 'unknown';
+            file_put_contents(self::$tmpdir . "/table.json", json_encode($schema));
+            $this->transporter->importDDL(self::$tmpdir . '/table.json');
+        });
     }
 
     /**

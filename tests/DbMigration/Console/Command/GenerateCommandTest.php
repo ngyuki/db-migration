@@ -31,21 +31,32 @@ class GenerateCommandTest extends AbstractTestCase
         $createfile = self::$tmpdir . '/create.sql';
         !file_exists($createfile) or unlink($createfile);
 
-        $this->runApp(array(
+        $result = $this->runApp(array(
+            'files' => array(
+                str_replace('\\', '/', $createfile),
+            )
+        ));
+
+        $this->assertEquals('', $result);
+        $this->assertFileExists($createfile);
+    }
+
+    /**
+     * @test
+     */
+    function run_ddl_vvv()
+    {
+        $createfile = self::$tmpdir . '/create.sql';
+        !file_exists($createfile) or unlink($createfile);
+
+        $result = $this->runApp(array(
             '-vvv'  => true,
             'files' => array(
                 str_replace('\\', '/', $createfile),
             )
         ));
 
-        $this->assertFileExists($createfile);
-
-        $this->runApp(array(
-            'files' => array(
-                str_replace('\\', '/', $createfile),
-            )
-        ));
-
+        $this->assertContains('CREATE TABLE gentable', $result);
         $this->assertFileExists($createfile);
     }
 
@@ -54,13 +65,31 @@ class GenerateCommandTest extends AbstractTestCase
      */
     function run_dml()
     {
-        $this->runApp(array(
+        $result = $this->runApp(array(
             'files' => array(
                 str_replace('\\', '/', self::$tmpdir . '/table.sql'),
                 str_replace('\\', '/', self::$tmpdir . '/gentable.sql'),
             )
         ));
 
+        $this->assertEquals('', $result);
+        $this->assertFileContains("INSERT INTO `gentable` (`id`, `code`) VALUES ('1', '10')", self::$tmpdir . '/gentable.sql');
+    }
+
+    /**
+     * @test
+     */
+    function run_dml_vvv()
+    {
+        $result = $this->runApp(array(
+            '-vvv'  => true,
+            'files' => array(
+                str_replace('\\', '/', self::$tmpdir . '/table.sql'),
+                str_replace('\\', '/', self::$tmpdir . '/gentable.sql'),
+            )
+        ));
+
+        $this->assertContains("INSERT INTO `gentable` (`id`, `code`) VALUES ('1', '10')", $result);
         $this->assertFileContains("INSERT INTO `gentable` (`id`, `code`) VALUES ('1', '10')", self::$tmpdir . '/gentable.sql');
     }
 
