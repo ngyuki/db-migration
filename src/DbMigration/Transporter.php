@@ -91,7 +91,7 @@ class Transporter
             }
         }
 
-        file_put_contents($filename, $content);
+        self::file_put_contents($filename, $content);
         return $content;
     }
 
@@ -148,7 +148,7 @@ class Transporter
         // restore
         $scanner->switchBufferedQuery($current);
 
-        file_put_contents($filename, $result);
+        self::file_put_contents($filename, $result);
         return $result;
     }
 
@@ -336,5 +336,12 @@ class Transporter
             $jop |= JSON_PRETTY_PRINT;
         }
         return $jop;
+    }
+
+    private static function file_put_contents($filename, $data)
+    {
+        $dirname = dirname($filename);
+        is_dir($dirname) or mkdir($dirname, 0777, true);
+        return file_put_contents($filename, $data);
     }
 }
