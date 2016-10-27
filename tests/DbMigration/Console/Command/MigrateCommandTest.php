@@ -7,6 +7,10 @@ class MigrateCommandTest extends AbstractTestCase
 {
     protected $commandName = 'migrate';
 
+    protected $defaultArgs = array(
+        '--format' => 'none',
+    );
+
     protected function setup()
     {
         parent::setUp();
@@ -504,6 +508,53 @@ class MigrateCommandTest extends AbstractTestCase
         ));
 
         $this->assertContains('more 23 quries', $result);
+    }
+
+    /**
+     * @test
+     */
+    function run_format()
+    {
+        $result = $this->runApp(array(
+            '--format'  => 'pretty',
+            '--check'   => true,
+            'files'     => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+        $this->assertContains('[0m', $result);
+
+        $result = $this->runApp(array(
+            '--format'  => 'format',
+            '--check'   => true,
+            'files'     => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+        $this->assertContains("DELETE FROM \n", $result);
+
+        $result = $this->runApp(array(
+            '--format'  => 'highlight',
+            '--check'   => true,
+            'files'     => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+        $this->assertContains('[0m', $result);
+
+        $result = $this->runApp(array(
+            '--format'  => 'compress',
+            '--check'   => true,
+            'files'     => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+        $this->assertContains("DELETE FROM `", $result);
+
     }
 
     /**

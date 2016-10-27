@@ -50,6 +50,7 @@ class MigrateCommand extends Command
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column for DML.'),
+            new InputOption('format', null, InputOption::VALUE_OPTIONAL, 'Format output SQL (none, pretty, format, highlight or compress. default pretty)', 'pretty'),
             new InputOption('omit', 'o', InputOption::VALUE_REQUIRED, 'Omit size for long SQL'),
             new InputOption('check', 'c', InputOption::VALUE_NONE, 'Check only (Dry run. force no-interaction)'),
             new InputOption('force', 'f', InputOption::VALUE_NONE, 'Force continue, ignore errors'),
@@ -314,7 +315,7 @@ EOT
 
         foreach ($sqls as $sql) {
             // display sql(formatted)
-            $this->writeSql($input, $output, $sql, true, ";");
+            $this->writeSql($input, $output, $sql);
 
             // exec if noconfirm or confirm answer is "y"
             if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(y/N):</question>', 'n')))) {
@@ -431,7 +432,7 @@ EOT
                 $shown_sqls[] = 'more ' . (count($sqls) - 1000) . ' quries.';
             }
             foreach ($shown_sqls as $sql) {
-                $this->writeSql($input, $output, $sql, false, ";");
+                $this->writeSql($input, $output, $sql);
             }
 
             // exec if noconfirm or confirm answer is "y"
@@ -476,29 +477,34 @@ EOT
         }
     }
 
-    private function writeSql(InputInterface $input, OutputInterface $output, $sql, $formatting, $delimiter)
+    private function writeSql(InputInterface $input, OutputInterface $output, $sql)
     {
         if ($output->getVerbosity() <= OutputInterface::VERBOSITY_QUIET) {
             return;
         }
 
-        $omitlength = intval($input->getOption('omit')) ?: 1024;
-
-        if ($formatting) {
-            $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+?\()(.+)/su', "$1\n  $4", $sql);
-            $sql = preg_replace('/(CREATE (TABLE|(UNIQUE )?INDEX).+)(\))/su', "$1\n$4", $sql);
-
-            $sql = preg_replace('/(ALTER TABLE .+?) ((ADD|DROP|CHANGE|MODIFY).+)/su', "$1\n  $2", $sql);
-
-            $sql = preg_replace('/(, )([^\\d])/u', ",\n  $2", $sql);
+        $sql .= ';';
+        switch ($input->getOption('format')) {
+            case 'pretty':
+                $sql = \SqlFormatter::format($sql, true);
+                break;
+            case 'format':
+                $sql = \SqlFormatter::format($sql, false);
+                break;
+            case 'highlight':
+                $sql = \SqlFormatter::highlight($sql);
+                break;
+            case 'compress':
+                $sql = \SqlFormatter::compress($sql);
+                break;
         }
 
+        $omitlength = intval($input->getOption('omit')) ?: 1024;
         if (mb_strlen($sql) > $omitlength) {
             $sql = mb_strimwidth($sql, 0, $omitlength, PHP_EOL . "...(omitted)");
         }
 
         $output->write($sql);
-        $output->writeln($delimiter);
         $output->writeln('');
     }
 }

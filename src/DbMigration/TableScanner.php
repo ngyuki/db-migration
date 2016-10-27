@@ -204,17 +204,17 @@ class TableScanner
             while (($newrow = $newrows->fetch()) !== false) {
                 if ($isMysql) {
                     // to VALUES string
-                    $valueString = implode(",\n  ", $this->joinKeyValue($newrow));
+                    $valueString = implode(', ', $this->joinKeyValue($newrow));
 
                     // to SQL
-                    $sqls[] = "INSERT INTO $this->quotedName SET\n  $valueString";
+                    $sqls[] = "INSERT INTO $this->quotedName SET $valueString";
                 }
                 else {
                     // to VALUES string
                     $valueString = implode(', ', $this->quoteArray(false, $newrow));
 
                     // to SQL
-                    $sqls[] = "INSERT INTO $this->quotedName ($columnString) VALUES\n  ($valueString)";
+                    $sqls[] = "INSERT INTO $this->quotedName ($columnString) VALUES ($valueString)";
                 }
             }
 
@@ -254,14 +254,14 @@ class TableScanner
                 $comment = $this->commentize($comments);
 
                 // to VALUES string
-                $valueString = implode(",\n  ", $this->joinKeyValue($deltas));
+                $valueString = implode(", ", $this->joinKeyValue($deltas));
 
                 // to WHERE string
                 $wheres = array_intersect_key($newrow, $this->flippedPrimaryKeys);
                 $whereString = $this->buildWhere($wheres);
 
                 // to SQL
-                $sqls[] = "$comment\nUPDATE $this->quotedName SET\n  $valueString\nWHERE $whereString";
+                $sqls[] = "$comment\nUPDATE $this->quotedName SET $valueString WHERE $whereString";
             }
 
             // no more rows

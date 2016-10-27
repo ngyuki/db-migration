@@ -16,6 +16,8 @@ abstract class AbstractTestCase extends \ryunosuke\Test\DbMigration\AbstractTest
 
     protected $commandName;
 
+    protected $defaultArgs = array();
+
     protected function setup()
     {
         parent::setUp();
@@ -47,7 +49,7 @@ abstract class AbstractTestCase extends \ryunosuke\Test\DbMigration\AbstractTest
     {
         $inputArray = array(
                 'command' => 'dbal:' . $this->commandName
-            ) + $inputArray + array(
+            ) + $inputArray + $this->defaultArgs + array(
                 '-n' => true
             );
 
