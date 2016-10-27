@@ -3,8 +3,8 @@ namespace ryunosuke\DbMigration\Console\Command;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\MigrationException;
+use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
@@ -323,10 +323,8 @@ EOT
                         $srcConn->exec($sql);
                     }
                     catch (\Exception $e) {
-                        if ($force) {
-                            $output->writeln('-- <error>' . $e->getMessage() . '</error>');
-                        }
-                        else {
+                        $output->writeln('/* <error>' . $e->getMessage() . '</error> */');
+                        if (!$force && ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exit?(y/N):</question>', 'n'))))) {
                             throw $e;
                         }
                     }
@@ -451,10 +449,8 @@ EOT
                     catch (\Exception $e) {
                         $srcConn->rollBack();
 
-                        if ($force) {
-                            $output->writeln('-- <error>' . $e->getMessage() . '</error>');
-                        }
-                        else {
+                        $output->writeln('/* <error>' . $e->getMessage() . '</error> */');
+                        if (!$force && ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exit?(y/N):</question>', 'n'))))) {
                             throw $e;
                         }
                     }
