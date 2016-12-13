@@ -151,6 +151,7 @@ Options:
  --force (-f)          Force continue, ignore errors
  --rebuild (-r)        Rebuild destination database
  --keep (-k)           Not drop destination database
+ --init                Initialize database (Too Dangerous)
  --help (-h)           Display this help message
  --quiet (-q)          Do not output any message
  --verbose (-v|vv|vvv) Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
@@ -174,7 +175,7 @@ files 引数でインポートする sql ファイルを指定します。
 DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式で指定します。
 要素は適宜省略できます。省略された要素は cli-config.php のものが使われます。
 
-前述の「原則として～」を覆す唯一のオプションです。
+前述の「原則として～」を**覆す唯一のオプション**です。
 このオプションを指定しないかぎり比較元は常に cli-config の connection です。
 
 #### --dsn (-d)
@@ -234,6 +235,13 @@ DML 差分対象のカラム名を指定します。
 
 ファイルから生成した一時スキーマを消さずに維持します。
 いちいち生成・削除を繰り返していると重いので検証作業中などはこのオプションを指定したほうが良いです。
+
+#### --init
+
+比較元と比較先を同一とみなしてマイグレーションします。
+比較対象は一度 DROP してから再構築されるため、要するに完全初期化用オプションです。
+
+**とても危険なオプションです。**
 
 #### --no-interaction (-n)
 
