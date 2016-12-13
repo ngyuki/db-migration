@@ -163,8 +163,9 @@ class Transporter
             default:
                 throw new \DomainException("'$ext' is not supported.");
             case 'sql':
-                $this->connection->exec(file_get_contents($filename));
-                return;
+                $contents = file_get_contents($filename);
+                $this->connection->exec($contents);
+                return $this->explodeSql($contents);
             case 'php':
                 $schemaArray = require $filename;
                 break;
@@ -195,6 +196,8 @@ class Transporter
         foreach ($sqls as $sql) {
             $this->connection->exec($sql);
         }
+
+        return $sqls;
     }
 
     public function importDML($filename)
@@ -205,8 +208,9 @@ class Transporter
             default:
                 throw new \DomainException("'$ext' is not supported.");
             case 'sql':
-                $this->connection->exec(file_get_contents($filename));
-                return;
+                $contents = file_get_contents($filename);
+                $this->connection->exec($contents);
+                return $this->explodeSql($contents);
             case 'php':
                 $rows = include($filename);
                 break;
@@ -225,6 +229,8 @@ class Transporter
         foreach ($rows as $row) {
             $this->connection->insert($qtable, $row);
         }
+
+        return $rows;
     }
 
     private function tableToArray(Table $table)
@@ -319,6 +325,55 @@ class Transporter
         }
 
         return $table;
+    }
+
+    private function explodeSql($sqls)
+    {
+        /// this is used by display only, so very loose.
+
+        $qv = $this->connection->quote('v');
+        $quoted_chars = array(
+            '"',
+            "'",
+            $qv[0],
+            $this->connection->getDatabasePlatform()->getIdentifierQuoteCharacter(),
+        );
+
+        $delimiter = ';';
+        $escaped_char = '\\';
+        $quoted_list = array_flip($quoted_chars);
+
+        preg_match_all('@.?@us', $sqls, $m);
+        $chars = $m[0];
+
+        $last_index = 0;
+        $escaping = false;
+        $quotings = array_fill_keys($quoted_chars, false);
+
+        $result = array();
+        foreach ($chars as $i => $c) {
+            if ($c === $escaped_char) {
+                $escaping = true;
+                continue;
+            }
+            if (isset($quoted_list[$c])) {
+                if (!$escaping) {
+                    $quotings[$c] = !$quotings[$c];
+                    $escaping = false;
+                    continue;
+                }
+            }
+
+            if (count(array_filter($quotings)) === 0  && $c === $delimiter) {
+                $result[] = implode('', array_slice($chars, $last_index, $i - $last_index));
+                $last_index = $i + 1;
+            }
+
+            $escaping = false;
+        }
+        $result[] = implode('', array_slice($chars, $last_index));
+
+        return $result;
     }
 
     private static function array_diff_assoc($array1, $array2)
