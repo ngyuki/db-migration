@@ -16,9 +16,16 @@ use Symfony\Component\Console\Question\Question;
 
 class MigrateCommand extends Command
 {
+    private $questionHelper = null;
+
     private $preMigration = null;
 
     private $postMigration = null;
+
+    public function getQuestionHelper()
+    {
+        return $this->questionHelper ?: $this->questionHelper = new QuestionHelper();
+    }
 
     public function setPreMigration($callback)
     {
@@ -263,7 +270,7 @@ EOT
     {
         $autoyes = $input->getOption('no-interaction');
         $keepdb = $input->getOption('dsn') || $input->getOption('keep');
-        $confirm = new QuestionHelper();
+        $confirm = $this->getQuestionHelper();
 
         // drop destination database
         if (!$keepdb) {
@@ -302,7 +309,7 @@ EOT
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
 
-        $confirm = new QuestionHelper();
+        $confirm = $this->getQuestionHelper();
 
         $output->writeln("-- <comment>diff DDL</comment>");
 
@@ -349,7 +356,7 @@ EOT
         $wheres = (array) $input->getOption('where') ?: array();
         $ignores = (array) $input->getOption('ignore') ?: array();
 
-        $confirm = new QuestionHelper();
+        $confirm = $this->getQuestionHelper();
 
         $output->writeln("-- <comment>diff DML</comment>");
 
