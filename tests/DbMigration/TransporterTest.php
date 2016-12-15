@@ -51,6 +51,25 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function explodeSql()
+    {
+        $method = $this->refClass->getMethod('explodeSql');
+        $method->setAccessible(true);
+
+        $this->assertEquals(array(''), $method->invoke($this->transporter, ''));
+        $this->assertEquals(array('hoge', 'fuga'), $method->invoke($this->transporter, 'hoge;fuga'));
+        $this->assertEquals(array('hoge', 'fuga', ''), $method->invoke($this->transporter, 'hoge;fuga;'));
+        $this->assertEquals(array('"ho;ge"'), $method->invoke($this->transporter, '"ho;ge"'));
+        $this->assertEquals(array('aa"ho;ge"bb'), $method->invoke($this->transporter, 'aa"ho;ge"bb'));
+        $this->assertEquals(array('h\"o', 'ge'), $method->invoke($this->transporter, 'h\\"o;ge'));
+        $this->assertEquals(array('"ho;\";ge"'), $method->invoke($this->transporter, '"ho;\";ge"'));
+        $this->assertEquals(array('"ho\';ge"'), $method->invoke($this->transporter, '"ho\';ge"'));
+        $this->assertEquals(array('あ', 'い'), $method->invoke($this->transporter, 'あ;い'));
+    }
+
+    /**
+     * @test
+     */
     function exportDDL()
     {
         $this->transporter->exportDDL(self::$tmpdir . '/table.sql');

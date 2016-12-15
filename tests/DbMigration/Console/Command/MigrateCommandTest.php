@@ -516,9 +516,9 @@ class MigrateCommandTest extends AbstractTestCase
     function run_format()
     {
         $result = $this->runApp(array(
-            '--format'  => 'pretty',
-            '--check'   => true,
-            'files'     => array(
+            '--format' => 'pretty',
+            '--check'  => true,
+            'files'    => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql'),
             )
@@ -526,9 +526,9 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains('[0m', $result);
 
         $result = $this->runApp(array(
-            '--format'  => 'format',
-            '--check'   => true,
-            'files'     => array(
+            '--format' => 'format',
+            '--check'  => true,
+            'files'    => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql'),
             )
@@ -536,9 +536,9 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains("DELETE FROM \n", $result);
 
         $result = $this->runApp(array(
-            '--format'  => 'highlight',
-            '--check'   => true,
-            'files'     => array(
+            '--format' => 'highlight',
+            '--check'  => true,
+            'files'    => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql'),
             )
@@ -546,15 +546,61 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains('[0m', $result);
 
         $result = $this->runApp(array(
-            '--format'  => 'compress',
-            '--check'   => true,
-            'files'     => array(
+            '--format' => 'compress',
+            '--check'  => true,
+            'files'    => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql'),
             )
         ));
         $this->assertContains("DELETE FROM `", $result);
 
+    }
+
+    /**
+     * @test
+     */
+    function run_init()
+    {
+        $result = $this->runApp(array(
+            '-v'     => true,
+            '--init' => true,
+            'files'  => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+        $this->assertContains("migration_tests_old is dropped", $result);
+        $this->assertContains("migration_tests_old is created", $result);
+        $this->assertContains("importDDL", $result);
+        $this->assertContains("importDML", $result);
+        $this->assertNotContains("diff DDL", $result);
+        $this->assertNotContains("diff DML", $result);
+
+        $mock_stream = fopen('php://memory', 'w+');
+        fwrite($mock_stream, 'n');
+        rewind($mock_stream);
+        /** @var MigrateCommand $command */
+        $command = $this->app->get('dbal:migrate');
+        $command->getQuestionHelper()->setInputStream($mock_stream);
+        $result = $this->runApp(array(
+            '-n'     => false,
+            '--init' => true,
+            'files'  => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+        $this->assertContains("canceled.", $result);
+
+        $this->assertExceptionMessage("can't initialize database if url specified", $this->runApp, array(
+            '--init' => true,
+            '--dsn'  => $this->new->getHost(),
+            'files'  => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
     }
 
     /**
