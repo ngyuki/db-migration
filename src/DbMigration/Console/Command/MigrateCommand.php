@@ -3,6 +3,7 @@ namespace ryunosuke\DbMigration\Console\Command;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use ryunosuke\DbMigration\Console\CancelException;
 use ryunosuke\DbMigration\MigrationException;
 use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\Transporter;
@@ -118,6 +119,12 @@ EOT
             // post migration
             $this->doCallback(9, $srcConn);
         }
+        catch (CancelException $e) {
+            // post migration
+            $this->doCallback(9, $srcConn);
+
+            $output->writeln("<comment>" . $e->getMessage() . "</comment>");
+        }
         catch (\Exception $e) {
             // post migration
             $this->doCallback(9, $srcConn);
@@ -217,7 +224,7 @@ EOT
         }
 
         if (!$autoyes && 'n' === strtolower($confirm->doAsk($output, new Question("<question>specified init option. really?(y/N):</question>", 'n')))) {
-            throw new \DomainException('canceled');
+            throw new CancelException('canceled.');
         }
 
         if ($url) {
