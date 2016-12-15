@@ -223,7 +223,7 @@ EOT
             throw new \InvalidArgumentException("can't initialize database if url specified.");
         }
 
-        if (!$autoyes && 'n' === strtolower($confirm->doAsk($output, new Question("<question>specified init option. really?(y/N):</question>", 'n')))) {
+        if ($init && !$autoyes && 'n' === strtolower($confirm->doAsk($output, new Question("<question>specified init option. really?(y/N):</question>", 'n')))) {
             throw new CancelException('canceled.');
         }
 
