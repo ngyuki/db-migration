@@ -62,7 +62,8 @@ class MigrateCommand extends Command
             new InputOption('check', 'c', InputOption::VALUE_NONE, 'Check only (Dry run. force no-interaction)'),
             new InputOption('force', 'f', InputOption::VALUE_NONE, 'Force continue, ignore errors'),
             new InputOption('rebuild', 'r', InputOption::VALUE_NONE, 'Rebuild destination database'),
-            new InputOption('keep', 'k', InputOption::VALUE_NONE, 'Not drop destination database')
+            new InputOption('keep', 'k', InputOption::VALUE_NONE, 'Not drop destination database'),
+            new InputOption('init', null, InputOption::VALUE_NONE, 'Initialize database (Too Dangerous)'),
         ));
         $this->setHelp(<<<EOT
 Migrate to SQL file or running database.
@@ -96,6 +97,11 @@ EOT
         try {
             // create destination database and connection
             $dstConn = $this->readyDestination($this->getHelper('db')->getConnection(), $files, $input, $output);
+
+            // if init flag, task is completed at this point
+            if ($input->getOption('init')) {
+                return;
+            }
 
             // pre migration
             $this->doCallback(1, $srcConn);
@@ -199,7 +205,21 @@ EOT
         $srcParams = $srcConn->getParams();
         unset($srcParams['url']);
 
+        $init = $input->getOption('init');
+        $rebuild = $input->getOption('rebuild') || $init;
         $url = $input->getOption('dsn');
+        $autoyes = $input->getOption('no-interaction');
+        $confirm = $this->getQuestionHelper();
+
+        // can't initialize
+        if ($init && $url) {
+            throw new \InvalidArgumentException("can't initialize database if url specified.");
+        }
+
+        if (!$autoyes && 'n' === strtolower($confirm->doAsk($output, new Question("<question>specified init option. really?(y/N):</question>", 'n')))) {
+            throw new \DomainException('canceled');
+        }
+
         if ($url) {
             // detect destination database params
             $dstParams = $this->parseDsn($url, $srcParams);
@@ -207,6 +227,9 @@ EOT
         else {
             $dstParams = $srcParams;
             $schema = $input->getOption('schema');
+            if ($init) {
+                $schema = $srcParams['dbname'];
+            }
             if ($schema) {
                 $dstParams['dbname'] = $schema;
             }
@@ -230,7 +253,7 @@ EOT
             $existsDstDb = in_array($dstName, $schemer->listDatabases());
 
             // drop destination database if exists
-            if ($existsDstDb && $input->getOption('rebuild')) {
+            if ($existsDstDb && $rebuild) {
                 $schemer->dropDatabase($dstName);
                 $output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
                 $existsDstDb = false;
@@ -240,14 +263,32 @@ EOT
             if (!$existsDstDb) {
                 $schemer->createDatabase($dstName);
                 $this->doCallback(1, $dstConn);
+                $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
 
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
-                $transporter->importDDL(array_shift($files));
+                $ddlfile = array_shift($files);
+                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                    $output->writeln("-- <info>importDDL</info> $ddlfile");
+                }
+                $sqls = $transporter->importDDL($ddlfile);
+                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+                    foreach ($sqls as $sql) {
+                        $this->writeSql($input, $output, $sql);
+                    }
+                }
                 $dstConn->beginTransaction();
                 try {
                     foreach ($files as $filename) {
-                        $transporter->importDML($filename);
+                        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                            $output->writeln("-- <info>importDML</info> $filename");
+                        }
+                        $rows = $transporter->importDML($filename);
+                        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+                            foreach ($rows as $row) {
+                                $output->writeln(var_export($row, true));
+                            }
+                        }
                     }
                     $dstConn->commit();
                 }
@@ -255,8 +296,6 @@ EOT
                     $dstConn->rollBack();
                     throw $ex;
                 }
-
-                $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
             }
             else {
                 $this->doCallback(1, $dstConn);
@@ -515,4 +554,3 @@ EOT
         $output->writeln('');
     }
 }
-
