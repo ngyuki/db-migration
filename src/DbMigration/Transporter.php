@@ -27,6 +27,11 @@ class Transporter
     /**
      * @var array
      */
+    private $encodings = array();
+
+    /**
+     * @var array
+     */
     private $defaultColumnAttributes = array(
         'length'           => null,
         'precision'        => 10,
@@ -50,6 +55,11 @@ class Transporter
         $this->connection = $connection;
         $this->platform = $connection->getDatabasePlatform();
         $this->schema = $connection->getSchemaManager()->createSchema();
+    }
+
+    public function setEncoding($ext, $encoding)
+    {
+        $this->encodings[$ext] = $encoding;
     }
 
     public function exportDDL($filename)
@@ -151,6 +161,10 @@ class Transporter
         // restore
         $scanner->switchBufferedQuery($current);
 
+        if (isset($this->encodings[$ext]) && $this->encodings[$ext] != mb_internal_encoding()) {
+            $result = mb_convert_encoding($result, $this->encodings[$ext]);
+        }
+
         self::file_put_contents($filename, $result);
         return $result;
     }
@@ -204,22 +218,34 @@ class Transporter
     {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
 
+        $to_encoding = mb_internal_encoding();
+        $encoding = null;
+        if (isset($this->encodings[$ext]) && $this->encodings[$ext] != $to_encoding) {
+            $encoding = $this->encodings[$ext];
+        }
+
         switch ($ext) {
             default:
                 throw new \DomainException("'$ext' is not supported.");
             case 'sql':
                 $contents = file_get_contents($filename);
+                self::mb_convert_variables($to_encoding, $encoding, $contents);
                 $this->connection->exec($contents);
                 return $this->explodeSql($contents);
             case 'php':
                 $rows = include($filename);
+                self::mb_convert_variables($to_encoding, $encoding, $rows);
                 break;
             case 'json':
-                $rows = json_decode(file_get_contents($filename), true);
+                $contents = file_get_contents($filename);
+                self::mb_convert_variables($to_encoding, $encoding, $contents);
+                $rows = json_decode($contents, true);
                 break;
             case 'yml':
             case 'yaml':
-                $rows = Yaml::parse(file_get_contents($filename));
+                $contents = file_get_contents($filename);
+                self::mb_convert_variables($to_encoding, $encoding, $contents);
+                $rows = Yaml::parse($contents);
                 break;
         }
 
@@ -407,5 +433,13 @@ class Transporter
         $dirname = dirname($filename);
         is_dir($dirname) or mkdir($dirname, 0777, true);
         return file_put_contents($filename, $data);
+    }
+
+    private static function mb_convert_variables($to_encoding, $from_encoding, &$vars)
+    {
+        if ($to_encoding === $from_encoding) {
+            return $from_encoding;
+        }
+        return mb_convert_variables($to_encoding, $from_encoding, $vars);
     }
 }
