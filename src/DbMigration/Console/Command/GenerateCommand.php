@@ -55,12 +55,12 @@ EOT
         $transporter = new Transporter($conn);
         $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
         $ddl = $transporter->exportDDL(array_shift($files));
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE){
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
             $output->writeln($ddl);
         }
         foreach ($files as $filename) {
             $dml = $transporter->exportDML($filename, $wheres, $ignores);
-            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE){
+            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                 $output->writeln($dml);
             }
         }

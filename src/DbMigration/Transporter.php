@@ -95,7 +95,7 @@ class Transporter
                     $content = "<?php return\n" . var_export($schemaArray, true) . ";\n";
                     break;
                 case 'json':
-                    $content = json_encode($schemaArray, self::getJsonOption()) . "\n";
+                    $content = self::json_encode($schemaArray) . "\n";
                     break;
                 case 'yml':
                 case 'yaml':
@@ -144,7 +144,7 @@ class Transporter
             case 'json':
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
-                    $result[] = json_encode($scanner->fillDefaultValue($row), self::getJsonOption());
+                    $result[] = self::json_encode($scanner->fillDefaultValue($row));
                 }
                 $result = "[\n" . implode(",\n", $result) . "\n]\n";
                 break;
@@ -422,7 +422,7 @@ class Transporter
                 }
             }
 
-            if (count(array_filter($quotings)) === 0  && $c === $delimiter) {
+            if (count(array_filter($quotings)) === 0 && $c === $delimiter) {
                 $result[] = implode('', array_slice($chars, $last_index, $i - $last_index));
                 $last_index = $i + 1;
             }
@@ -445,19 +445,18 @@ class Transporter
         return $array1;
     }
 
-    private static function getJsonOption()
+    private static function json_encode($value, $options = 0)
     {
-        $jop = 0;
         if (defined('JSON_UNESCAPED_UNICODE')) {
-            $jop |= JSON_UNESCAPED_UNICODE;
+            $options |= JSON_UNESCAPED_UNICODE;
         }
         if (defined('JSON_UNESCAPED_SLASHES')) {
-            $jop |= JSON_UNESCAPED_SLASHES;
+            $options |= JSON_UNESCAPED_SLASHES;
         }
         if (defined('JSON_PRETTY_PRINT')) {
-            $jop |= JSON_PRETTY_PRINT;
+            $options |= JSON_PRETTY_PRINT;
         }
-        return $jop;
+        return json_encode($value, $options);
     }
 
     private static function file_put_contents($filename, $data)

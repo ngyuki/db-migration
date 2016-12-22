@@ -3,8 +3,8 @@ namespace ryunosuke\Test\DbMigration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\SchemaException;
-use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\MigrationException;
+use ryunosuke\DbMigration\Migrator;
 
 class MigratorTest extends AbstractTestCase
 {
