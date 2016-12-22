@@ -156,6 +156,21 @@ class Transporter
                 }
                 $result = implode("", $result);
                 break;
+            case 'csv':
+                $handle = fopen('php://temp', "w");
+                $first = true;
+                foreach ($scanner->getAllRows() as $row) {
+                    // first row is used as CSV header
+                    if ($first) {
+                        $first = false;
+                        fputcsv($handle, array_keys($row));
+                    }
+                    fputcsv($handle, $row);
+                }
+                rewind($handle);
+                $result = stream_get_contents($handle);
+                fclose($handle);
+                break;
         }
 
         // restore
@@ -246,6 +261,23 @@ class Transporter
                 $contents = file_get_contents($filename);
                 self::mb_convert_variables($to_encoding, $encoding, $contents);
                 $rows = Yaml::parse($contents);
+                break;
+            case 'csv':
+                $rows = array();
+                $header = array();
+                if (($handle = fopen($filename, "r")) !== false) {
+                    while (($data = fgetcsv($handle)) !== false) {
+                        self::mb_convert_variables($to_encoding, $encoding, $data);
+                        // first row is used as CSV header
+                        if (!$header) {
+                            $header = $data;
+                        }
+                        else {
+                            $rows[] = array_combine($header, $data);
+                        }
+                    }
+                    fclose($handle);
+                }
                 break;
         }
 

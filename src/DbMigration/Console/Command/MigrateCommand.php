@@ -60,6 +60,7 @@ class MigrateCommand extends Command
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column for DML.'),
             new InputOption('format', null, InputOption::VALUE_OPTIONAL, 'Format output SQL (none, pretty, format, highlight or compress. default pretty)', 'pretty'),
             new InputOption('omit', 'o', InputOption::VALUE_REQUIRED, 'Omit size for long SQL'),
+            new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
             new InputOption('check', 'c', InputOption::VALUE_NONE, 'Check only (Dry run. force no-interaction)'),
             new InputOption('force', 'f', InputOption::VALUE_NONE, 'Force continue, ignore errors'),
             new InputOption('rebuild', 'r', InputOption::VALUE_NONE, 'Rebuild destination database'),
@@ -274,6 +275,7 @@ EOT
 
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
+                $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
                 $ddlfile = array_shift($files);
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- <info>importDDL</info> $ddlfile");
