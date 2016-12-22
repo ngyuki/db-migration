@@ -178,18 +178,81 @@ class TransporterTest extends AbstractTestCase
             );
         }, range(1, 10)));
 
-        $supported = array('sql', 'php', 'json', 'yaml');
+        $supported = array('sql', 'php', 'json', 'yaml', 'csv');
         foreach ($supported as $ext) {
             $this->transporter->exportDML(self::$tmpdir . "/fuga.$ext", array(), array());
         }
         foreach ($supported as $ext) {
             $this->old->delete('fuga', array(0));
             $this->transporter->importDML(self::$tmpdir . "/fuga.$ext");
-            $this->assertEquals(10, $this->old->fetchColumn('SELECT COUNT(*) FROM hoge'));
+            $this->assertEquals(10, $this->old->fetchColumn('SELECT COUNT(*) FROM fuga'));
         }
 
         $this->assertException(new \DomainException("is not supported"), function () {
             $this->transporter->importDML(self::$tmpdir . '/fuga.ext');
         });
+    }
+
+    /**
+     * @test
+     */
+    function encoding()
+    {
+        $this->transporter->setEncoding('sql', 'SJIS-win');
+        $this->transporter->setEncoding('php', 'SJIS-win');
+        $this->transporter->setEncoding('json', 'SJIS-win');
+        $this->transporter->setEncoding('yaml', 'SJIS-win');
+        $this->transporter->setEncoding('csv', 'SJIS-win');
+
+        $supported = array(
+            'sql'  => "INSERT INTO `hoge` (`id`, `name`, `data`) VALUES ('1', 'あいうえお', '3.14');
+",
+            'php'  => "<?php return array(
+array (
+  'id' => '1',
+  'name' => 'あいうえお',
+  'data' => '3.14',
+)
+);
+",
+            'json' => '[
+{
+    "id": "1",
+    "name": "あいうえお",
+    "data": "3.14"
+}
+]
+',
+            'yaml' => "-
+    id: '1'
+    name: あいうえお
+    data: '3.14'
+",
+            'csv'  => "id,name,data
+1,あいうえお,3.14
+",
+        );
+        mb_convert_variables('SJIS-win', mb_internal_encoding(), $supported);
+
+        $this->old->delete('hoge', array(0));
+        $this->old->insert('hoge', array(
+            'id'   => 1,
+            'name' => 'あいうえお',
+            'data' => 3.14,
+        ));
+
+        foreach ($supported as $ext => $expected) {
+            $this->transporter->exportDML(self::$tmpdir . "/hoge.$ext", array(), array());
+            $this->assertStringEqualsFile(self::$tmpdir . "/hoge.$ext", $expected);
+        }
+        foreach ($supported as $ext => $expected) {
+            $this->old->delete('hoge', array(0));
+            $this->transporter->importDML(self::$tmpdir . "/hoge.$ext");
+            $this->assertEquals(array(
+                'id'   => 1,
+                'name' => 'あいうえお',
+                'data' => 3.14,
+            ), $this->old->fetchAssoc('SELECT * FROM hoge'));
+        }
     }
 }

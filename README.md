@@ -76,18 +76,19 @@ cli-config.php で設定された connection のスキーマとレコードを�
 
 ```
 Arguments:
- files                  Definitation files. First argument is meaned schema.
+  files                              Definitation files. First argument is meaned schema.
 
 Options:
- -w, --where[=WHERE]    Where condition. (multiple values allowed)
- -g, --ignore[=IGNORE]  Ignore column. (multiple values allowed)
- -h, --help             Display this help message
- -q, --quiet            Do not output any message
- -V, --version          Display this application version
-     --ansi             Force ANSI output
-     --no-ansi          Disable ANSI output
- -n, --no-interaction   Do not ask any interactive question
- -v|vv|vvv, --verbose   Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+  -w, --where[=WHERE]                Where condition. (multiple values allowed)
+  -g, --ignore[=IGNORE]              Ignore column. (multiple values allowed)
+      --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
+  -h, --help                         Display this help message
+  -q, --quiet                        Do not output any message
+  -V, --version                      Display this application version
+      --ansi                         Force ANSI output
+      --no-ansi                      Disable ANSI output
+  -n, --no-interaction               Do not ask any interactive question
+  -v|vv|vvv, --verbose               Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 ```
 
 files 引数でエクスポートするファイルを指定します。
@@ -107,6 +108,7 @@ files 引数でエクスポートするファイルを指定します。
 - .php php の配列で出力します
 - .json json 形式で出力します
 - .yaml yaml 形式で出力します
+- .csv csv 形式で出力します（DDL のみ）
 - 上記以外は例外
 
 #### --where (-w)
@@ -135,30 +137,32 @@ cli-config.php で設定された connection と、指定したファイルで�
 
 ```
 Arguments:
- files                 SQL files
+  files                              SQL files
 
 Options:
- --target              Specify target DSN (default cli-config)
- --dsn (-d)            Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config
- --schema (-s)         Specify destination DSN (default `md5(filemtime(files))`) suffix based on cli-config
- --type (-t)           Migration SQL type (ddl, dml. default both)
- --include (-i)        Target tables (enable comma separated value) (multiple values allowed)
- --exclude (-e)        Except tables (enable comma separated value) (multiple values allowed)
- --where (-w)          Where condition.
- --ignore (-g)         Ignore column for DML.
- --omit (-o)           Omit size for long SQL
- --check (-c)          Check only (Dry run. force no-interaction)
- --force (-f)          Force continue, ignore errors
- --rebuild (-r)        Rebuild destination database
- --keep (-k)           Not drop destination database
- --init                Initialize database (Too Dangerous)
- --help (-h)           Display this help message
- --quiet (-q)          Do not output any message
- --verbose (-v|vv|vvv) Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
- --version (-V)        Display this application version
- --ansi                Force ANSI output
- --no-ansi             Disable ANSI output
- --no-interaction (-n) Do not ask any interactive question
+      --target[=TARGET]              Specify target DSN (default cli-config)
+  -d, --dsn[=DSN]                    Specify destination DSN (default create temporary database) suffix based on cli-config
+  -s, --schema[=SCHEMA]              Specify destination database name (default `md5(filemtime(files))`)
+  -t, --type[=TYPE]                  Migration SQL type (ddl, dml. default both)
+  -i, --include[=INCLUDE]            Target tables (enable comma separated value) (multiple values allowed)
+  -e, --exclude[=EXCLUDE]            Except tables (enable comma separated value) (multiple values allowed)
+  -w, --where[=WHERE]                Where condition. (multiple values allowed)
+  -g, --ignore[=IGNORE]              Ignore column for DML. (multiple values allowed)
+      --format[=FORMAT]              Format output SQL (none, pretty, format, highlight or compress. default pretty) [default: "pretty"]
+  -o, --omit=OMIT                    Omit size for long SQL
+      --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
+  -c, --check                        Check only (Dry run. force no-interaction)
+  -f, --force                        Force continue, ignore errors
+  -r, --rebuild                      Rebuild destination database
+  -k, --keep                         Not drop destination database
+      --init                         Initialize database (Too Dangerous)
+  -h, --help                         Display this help message
+  -q, --quiet                        Do not output any message
+  -V, --version                      Display this application version
+      --ansi                         Force ANSI output
+      --no-ansi                      Disable ANSI output
+  -n, --no-interaction               Do not ask any interactive question
+  -v|vv|vvv, --verbose               Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 ```
 
 files 引数でインポートする sql ファイルを指定します。

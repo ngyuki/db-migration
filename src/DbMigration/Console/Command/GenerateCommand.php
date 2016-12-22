@@ -20,6 +20,7 @@ class GenerateCommand extends Command
             new InputArgument('files', InputArgument::REQUIRED | InputArgument::IS_ARRAY, 'Definitation files. First argument is meaned schema.'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column.'),
+            new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
         ));
         $this->setHelp(<<<EOT
 Generate to SQL file baseed on extension.
@@ -52,6 +53,7 @@ EOT
 
         // export sql files from argument
         $transporter = new Transporter($conn);
+        $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
         $ddl = $transporter->exportDDL(array_shift($files));
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE){
             $output->writeln($ddl);
