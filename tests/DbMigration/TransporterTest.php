@@ -1,6 +1,7 @@
 <?php
 namespace ryunosuke\Test\DbMigration;
 
+use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Table;
 use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Yaml\Yaml;
@@ -26,7 +27,7 @@ class TransporterTest extends AbstractTestCase
         $table->addColumn('name', 'string', array('length' => 10));
         $table->addColumn('data', 'float', array('scale' => 5));
         $table->setPrimaryKey(array('id'));
-        $table->addIndex(array('name'));
+        $table->addIndex(array('name'), 'SECONDARY');
         $table->addUniqueIndex(array('data'));
         $this->oldSchema->dropAndCreateTable($table);
 
@@ -34,6 +35,24 @@ class TransporterTest extends AbstractTestCase
         $table->addColumn('id', 'integer');
         $table->setPrimaryKey(array('id'));
         $table->addForeignKeyConstraint('hoge', array('id'), array('id'));
+        $this->oldSchema->dropAndCreateTable($table);
+
+        $table = new Table('parent');
+        $table->addColumn('id', 'integer');
+        $table->setPrimaryKey(array('id'));
+        $this->oldSchema->dropAndCreateTable($table);
+
+        $table = new Table('child');
+        $table->addColumn('id', 'integer');
+        $table->addColumn('pid', 'integer');
+        $table->setPrimaryKey(array('id', 'pid'));
+        $table->addForeignKeyConstraint('parent', array('id'), array('id'));
+        $indexes = new \ReflectionProperty($table, 'implicitIndexes');
+        $indexes->setAccessible(true);
+        foreach ($indexes->getValue($table) as $index) {
+            /** @var Index $index */
+            $table->dropIndex($index->getName());
+        }
         $this->oldSchema->dropAndCreateTable($table);
 
         $this->insertMultiple($this->old, 'hoge', array_map(function ($i) {
@@ -44,7 +63,7 @@ class TransporterTest extends AbstractTestCase
             );
         }, range(1, 10)));
 
-        $this->transporter = new Transporter($this->old, $table, 'TRUE');
+        $this->transporter = new Transporter($this->old);
         $this->refClass = new \ReflectionClass($this->transporter);
     }
 
@@ -146,8 +165,9 @@ class TransporterTest extends AbstractTestCase
             $this->transporter->exportDDL(self::$tmpdir . "/table.$ext");
         }
         foreach ($supported as $ext) {
-            $this->oldSchema->dropTable('fuga');
-            $this->oldSchema->dropTable('hoge');
+            foreach ($this->oldSchema->listTableNames() as $tname) {
+                $this->oldSchema->dropTable($tname);
+            }
             $this->transporter->importDDL(self::$tmpdir . "/table.$ext");
             $this->assertTrue($this->oldSchema->tablesExist('hoge'));
             $this->assertTrue($this->oldSchema->tablesExist('fuga'));
@@ -191,6 +211,21 @@ class TransporterTest extends AbstractTestCase
         $this->assertException(new \DomainException("is not supported"), function () {
             $this->transporter->importDML(self::$tmpdir . '/fuga.ext');
         });
+    }
+
+    /**
+     * @test
+     */
+    function implicit()
+    {
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yml');
+        $this->assertFileNotContains('IDX_', self::$tmpdir . '/table.yml');
+
+        foreach ($this->oldSchema->listTableNames() as $tname) {
+            $this->oldSchema->dropTable($tname);
+        }
+        $this->transporter->importDDL(self::$tmpdir . '/table.yml');
+        $this->assertCount(1, $this->oldSchema->listTableIndexes('child'));
     }
 
     /**
@@ -254,5 +289,32 @@ array (
                 'data' => 3.14,
             ), $this->old->fetchAssoc('SELECT * FROM hoge'));
         }
+    }
+
+    /**
+     * @test
+     */
+    function mb_convert_variables()
+    {
+        $mb_convert_variables = $this->refClass->getMethod('mb_convert_variables');
+        $mb_convert_variables->setAccessible(true);
+
+        $string = 'あ';
+
+        $actual = $mb_convert_variables->invokeArgs($this->transporter, array(
+            'UTF-8',
+            'UTF-8',
+            &$string
+        ));
+        $this->assertEquals($actual, 'UTF-8');
+        $this->assertEquals('あ', $string);
+
+        $actual = $mb_convert_variables->invokeArgs($this->transporter, array(
+            'SJIS',
+            'UTF-8',
+            &$string
+        ));
+        $this->assertEquals($actual, 'UTF-8');
+        $this->assertEquals('あ', mb_convert_encoding($string, 'UTF-8', 'SJIS'));
     }
 }

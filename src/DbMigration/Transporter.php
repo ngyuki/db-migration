@@ -327,6 +327,10 @@ class Transporter
 
         // add indexes
         foreach ($table->getIndexes() as $index) {
+            // ignore implicit index
+            if ($index->hasFlag('implicit')) {
+                continue;
+            }
             $array = array(
                 'column'  => $index->getColumns(),
                 'primary' => $index->isPrimary(),
@@ -380,6 +384,13 @@ class Transporter
         // add foreign keys
         foreach ($array['foreign'] as $name => $fkey) {
             $table->addForeignKeyConstraint($fkey['table'], array_keys($fkey['column']), array_values($fkey['column']), $fkey['option'], $name);
+        }
+
+        // ignore implicit index
+        foreach ($table->getIndexes() as $index) {
+            if ($index->hasFlag('implicit')) {
+                $table->dropIndex($index->getName());
+            }
         }
 
         return $table;
