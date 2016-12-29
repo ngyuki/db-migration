@@ -108,7 +108,7 @@ files 引数でエクスポートするファイルを指定します。
 - .php php の配列で出力します
 - .json json 形式で出力します
 - .yaml yaml 形式で出力します
-- .csv csv 形式で出力します（DDL のみ）
+- .csv csv 形式で出力します（DML のみ）
 - 上記以外は例外
 
 #### --where (-w)
