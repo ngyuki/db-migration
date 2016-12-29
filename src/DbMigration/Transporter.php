@@ -50,6 +50,14 @@ class Transporter
         'option'  => array(),
     );
 
+    /**
+     * @var array
+     */
+    private $ignoreColumnOptionAttributes = array(
+        // for ryunosuke/dbal
+        'beforeColumn',
+    );
+
     public function __construct(Connection $connection)
     {
         $this->connection = $connection;
@@ -302,6 +310,7 @@ class Transporter
         );
 
         // add columns
+        $ignoreColumnAttributes = array_flip($this->ignoreColumnOptionAttributes);
         foreach ($table->getColumns() as $column) {
             $array = array(
                 'type'                => $column->getType()->getName(),
@@ -315,8 +324,8 @@ class Transporter
                 'autoincrement'       => $column->getAutoincrement(),
                 'columnDefinition'    => $column->getColumnDefinition(),
                 'comment'             => $column->getComment(),
-                'platformOptions'     => $column->getPlatformOptions(),
-                'customSchemaOptions' => $column->getCustomSchemaOptions(),
+                'platformOptions'     => array_diff_key($column->getPlatformOptions(), $ignoreColumnAttributes),
+                'customSchemaOptions' => array_diff_key($column->getCustomSchemaOptions(), $ignoreColumnAttributes),
             );
             $array = self::array_diff_assoc($array, $this->defaultColumnAttributes);
             if (!in_array($array['type'], array('smallint', 'integer', 'bigint', 'decimal', 'float'), true)) {
