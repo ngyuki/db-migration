@@ -3,6 +3,7 @@ namespace ryunosuke\Test\DbMigration;
 
 use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Schema\View;
 use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Yaml\Yaml;
 
@@ -54,6 +55,9 @@ class TransporterTest extends AbstractTestCase
             $table->dropIndex($index->getName());
         }
         $this->oldSchema->dropAndCreateTable($table);
+
+        $view = new View('vvview', 'select * from hoge');
+        $this->oldSchema->dropAndCreateView($view);
 
         $this->insertMultiple($this->old, 'hoge', array_map(function ($i) {
             return array(
@@ -137,6 +141,21 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function exportDDL_noview()
+    {
+        $this->transporter->enableView(false);
+        $this->transporter->exportDDL(self::$tmpdir . '/table.sql');
+        $sql = file_get_contents(self::$tmpdir . '/table.sql');
+        $this->assertNotContains('CREATE VIEW vvview', $sql);
+
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yaml');
+        $yaml = Yaml::parse(file_get_contents(self::$tmpdir . '/table.yaml'));
+        $this->assertEmpty($yaml['view']);
+    }
+
+    /**
+     * @test
+     */
     function exportDML()
     {
         $this->transporter->exportDML(self::$tmpdir . '/hoge.sql');
@@ -191,9 +210,13 @@ class TransporterTest extends AbstractTestCase
             foreach ($this->oldSchema->listTableNames() as $tname) {
                 $this->oldSchema->dropTable($tname);
             }
+            foreach ($this->oldSchema->listViews() as $vname => $view) {
+                $this->oldSchema->dropView($vname);
+            }
             $this->transporter->importDDL(self::$tmpdir . "/table.$ext");
             $this->assertTrue($this->oldSchema->tablesExist('hoge'));
             $this->assertTrue($this->oldSchema->tablesExist('fuga'));
+            $this->assertEquals(array('vvview'), array_keys($this->oldSchema->listViews()));
         }
 
         $this->assertException(new \DomainException("is not supported"), function () {
@@ -207,6 +230,25 @@ class TransporterTest extends AbstractTestCase
             file_put_contents(self::$tmpdir . "/table.json", json_encode($schema));
             $this->transporter->importDDL(self::$tmpdir . '/table.json');
         });
+    }
+
+    /**
+     * @test
+     */
+    function importDDL_noview()
+    {
+        $this->transporter->enableView(true);
+        $this->transporter->exportDDL(self::$tmpdir . "/table.yaml");
+        foreach ($this->oldSchema->listTableNames() as $tname) {
+            $this->oldSchema->dropTable($tname);
+        }
+        foreach ($this->oldSchema->listViews() as $vname => $view) {
+            $this->oldSchema->dropView($vname);
+        }
+
+        $this->transporter->enableView(false);
+        $this->transporter->importDDL(self::$tmpdir . "/table.yaml");
+        $this->assertEmpty($this->oldSchema->listViews());
     }
 
     /**
@@ -246,6 +288,9 @@ class TransporterTest extends AbstractTestCase
 
         foreach ($this->oldSchema->listTableNames() as $tname) {
             $this->oldSchema->dropTable($tname);
+        }
+        foreach ($this->oldSchema->listViews() as $vname => $view) {
+            $this->oldSchema->dropView($vname);
         }
         $this->transporter->importDDL(self::$tmpdir . '/table.yml');
         $this->assertCount(1, $this->oldSchema->listTableIndexes('child'));

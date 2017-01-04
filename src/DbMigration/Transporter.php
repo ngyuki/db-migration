@@ -3,9 +3,9 @@ namespace ryunosuke\DbMigration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Index;
-use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Symfony\Component\Yaml\Yaml;
 
@@ -22,9 +22,14 @@ class Transporter
     private $platform;
 
     /**
-     * @var Schema
+     * @var AbstractSchemaManager
      */
     private $schema;
+
+    /**
+     * @var bool
+     */
+    private $viewEnabled = true;
 
     /**
      * @var array
@@ -64,7 +69,12 @@ class Transporter
     {
         $this->connection = $connection;
         $this->platform = $connection->getDatabasePlatform();
-        $this->schema = $connection->getSchemaManager()->createSchema();
+        $this->schema = $connection->getSchemaManager();
+    }
+
+    public function enableView($enabled)
+    {
+        $this->viewEnabled = $enabled;
     }
 
     public function setEncoding($ext, $encoding)
@@ -78,29 +88,50 @@ class Transporter
 
         // SQL is special
         if ($ext === 'sql') {
-            $creates = $alters = array();
-            foreach ($this->schema->getTables() as $table) {
-                if ($this->filterTable($table->getName(), $includes, $excludes) > 0) {
+            $creates = $alters = $views = array();
+            foreach ($this->schema->listTables() as $table) {
+                if (Migrator::filterTable($table->getName(), $includes, $excludes) > 0) {
                     continue;
                 }
                 $sqls = $this->platform->getCreateTableSQL($table, AbstractPlatform::CREATE_INDEXES | AbstractPlatform::CREATE_FOREIGNKEYS);
                 $creates[] = \SqlFormatter::format(array_shift($sqls), false);
                 $alters = array_merge($alters, $sqls);
             }
-            $content = implode(";\n", array_merge($creates, $alters)) . ";\n";
+            if ($this->viewEnabled) {
+                foreach ($this->schema->listViews() as $view) {
+                    if (Migrator::filterTable($view->getName(), $includes, $excludes) > 0) {
+                        continue;
+                    }
+                    $sql = $this->platform->getCreateViewSQL($view->getName(), $view->getSql());
+                    $views[] = \SqlFormatter::format($sql, false);
+                }
+            }
+            $content = implode(";\n", array_merge($creates, $alters, $views)) . ";\n";
         }
         else {
             // generate schema array
             $schemaArray = array(
                 'platform' => $this->platform->getName(),
                 'table'    => array(),
+                'view'     => array(),
             );
-            foreach ($this->schema->getTables() as $table) {
-                if ($this->filterTable($table->getName(), $includes, $excludes) > 0) {
+            foreach ($this->schema->listTables() as $table) {
+                if (Migrator::filterTable($table->getName(), $includes, $excludes) > 0) {
                     continue;
                 }
                 $tarray = $this->tableToArray($table);
                 $schemaArray['table'][$table->getName()] = $tarray;
+            }
+            if ($this->viewEnabled) {
+                foreach ($this->connection->getSchemaManager()->listViews() as $view) {
+                    if (Migrator::filterTable($view->getName(), $includes, $excludes) > 0) {
+                        continue;
+                    }
+                    $varray = array(
+                        'sql' => $view->getSql(),
+                    );
+                    $schemaArray['view'][$view->getName()] = $varray;
+                }
             }
 
             // by Data Description Language
@@ -130,7 +161,7 @@ class Transporter
 
         // create TableScanner
         $tablename = basename($filename, ".$ext");
-        $table = $this->schema->getTable($tablename);
+        $table = $this->schema->listTableDetails($tablename);
         $scanner = new TableScanner($this->connection, $table, $filterCondition, $ignoreColumn);
 
         // for too many records
@@ -229,15 +260,20 @@ class Transporter
             }
         }
 
-        $creates = $alters = array();
+        $creates = $alters = $views = array();
         foreach ($schemaArray['table'] as $name => $tarray) {
             $table = $this->tableFromArray($name, $tarray);
             $sqls = $this->platform->getCreateTableSQL($table, AbstractPlatform::CREATE_INDEXES | AbstractPlatform::CREATE_FOREIGNKEYS);
             $creates[] = array_shift($sqls);
             $alters = array_merge($alters, $sqls);
         }
+        if ($this->viewEnabled) {
+            foreach ($schemaArray['view'] as $name => $varray) {
+                $views[] = $this->platform->getCreateViewSQL($name, $varray['sql']);
+            }
+        }
 
-        $sqls = array_merge($creates, $alters);
+        $sqls = array_merge($creates, $alters, $views);
         foreach ($sqls as $sql) {
             $this->connection->exec($sql);
         }
@@ -422,34 +458,6 @@ class Transporter
         }
 
         return $table;
-    }
-
-    private function filterTable($tablename, $includes, $excludes)
-    {
-        // filter from includes
-        $flag = count($includes) > 0;
-        foreach ($includes as $include) {
-            foreach (array_map('trim', explode(',', $include)) as $regex) {
-                if (preg_match("@$regex@i", $tablename)) {
-                    $flag = false;
-                    break;
-                }
-            }
-        }
-        if ($flag) {
-            return 1;
-        }
-
-        // filter from excludes
-        foreach ($excludes as $exclude) {
-            foreach (array_map('trim', explode(',', $exclude)) as $regex) {
-                if (preg_match("@$regex@i", $tablename)) {
-                    return 2;
-                }
-            }
-        }
-
-        return 0;
     }
 
     private function explodeSql($sqls)

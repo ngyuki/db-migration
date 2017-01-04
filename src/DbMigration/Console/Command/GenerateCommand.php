@@ -18,6 +18,7 @@ class GenerateCommand extends Command
         $this->setName('dbal:generate')->setDescription('Generate to Record file.');
         $this->setDefinition(array(
             new InputArgument('files', InputArgument::REQUIRED | InputArgument::IS_ARRAY, 'Definitation files. First argument is meaned schema.'),
+            new InputOption('noview', null, InputOption::VALUE_NONE, 'No migration View.'),
             new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables pattern (enable comma separated value)'),
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables pattern (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
@@ -57,6 +58,7 @@ EOT
 
         // export sql files from argument
         $transporter = new Transporter($conn);
+        $transporter->enableView(!$input->getOption('noview'));
         $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
         $ddl = $transporter->exportDDL(array_shift($files), $includes, $excludes);
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {

@@ -1,6 +1,7 @@
 <?php
 namespace ryunosuke\Test\DbMigration\Console\Command;
 
+use Doctrine\DBAL\Schema\View;
 use ryunosuke\DbMigration\Console\Command\MigrateCommand;
 
 class MigrateCommandTest extends AbstractTestCase
@@ -36,6 +37,10 @@ class MigrateCommandTest extends AbstractTestCase
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('igntable', 'integer', 'id', 'code'));
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('unqtable', 'integer', 'id', 'code'));
         $this->oldSchema->dropAndCreateTable($this->createSimpleTable('sametable', 'integer', 'id'));
+        $this->oldSchema->dropAndCreateTable($this->createSimpleTable('drptable', 'integer', 'id'));
+
+        $view = new View('simpleview', 'select 1');
+        $this->oldSchema->createView($view);
 
         $this->old->insert('migtable', array(
             'id'   => 5,
@@ -225,7 +230,8 @@ class MigrateCommandTest extends AbstractTestCase
             ),
             '--exclude' => array(
                 'igntable',
-                'migtable'
+                'migtable',
+                'drptable',
             ),
             'files'     => array(
                 $this->getFile('table.sql'),
@@ -237,6 +243,23 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertNotContains('INSERT INTO `migtable`', $result);
         $this->assertNotContains('UPDATE `migtable` SET', $result);
         $this->assertNotContains('`sametable`', $result);
+        $this->assertNotContains('`drptable`', $result);
+    }
+
+    /**
+     * @test
+     */
+    function run_noview()
+    {
+        $result = $this->runApp(array(
+            '-v'        => true,
+            '--noview'  => true,
+            'files'     => array(
+                $this->getFile('table.sql')
+            )
+        ));
+
+        $this->assertNotContains('simpleview', $result);
     }
 
     /**
