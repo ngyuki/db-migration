@@ -114,14 +114,37 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function exportDDL_filter()
+    {
+        $this->transporter->exportDDL(self::$tmpdir . '/table.sql', array('.*g.*'), array('fuga'));
+        $sql = file_get_contents(self::$tmpdir . '/table.sql');
+        $this->assertContains('CREATE TABLE hoge', $sql);
+        $this->assertNotContains('CREATE TABLE fuga', $sql);
+
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yaml', array('.*g.*'), array());
+        $yaml = Yaml::parse(file_get_contents(self::$tmpdir . '/table.yaml'));
+        $this->assertEquals(array('fuga', 'hoge'), array_keys($yaml['table']));
+
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yaml', array('hoge', 'fuga'), array());
+        $yaml = Yaml::parse(file_get_contents(self::$tmpdir . '/table.yaml'));
+        $this->assertEquals(array('fuga', 'hoge'), array_keys($yaml['table']));
+
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yaml', array('.*g.*'), array('fuga'));
+        $yaml = Yaml::parse(file_get_contents(self::$tmpdir . '/table.yaml'));
+        $this->assertEquals(array('hoge'), array_keys($yaml['table']));
+    }
+
+    /**
+     * @test
+     */
     function exportDML()
     {
-        $this->transporter->exportDML(self::$tmpdir . '/hoge.sql', array(), array());
+        $this->transporter->exportDML(self::$tmpdir . '/hoge.sql');
         $this->assertFileContains("INSERT INTO `hoge` (`id`, `name`, `data`) VALUES ('1', 'name-1', '1.5')", self::$tmpdir . '/hoge.sql');
 
-        $this->transporter->exportDML(self::$tmpdir . '/hoge.php', array(), array());
-        $this->transporter->exportDML(self::$tmpdir . '/hoge.json', array(), array());
-        $this->transporter->exportDML(self::$tmpdir . '/hoge.yaml', array(), array());
+        $this->transporter->exportDML(self::$tmpdir . '/hoge.php');
+        $this->transporter->exportDML(self::$tmpdir . '/hoge.json');
+        $this->transporter->exportDML(self::$tmpdir . '/hoge.yaml');
 
         $php = include self::$tmpdir . '/hoge.php';
         $json = json_decode(file_get_contents(self::$tmpdir . '/hoge.json'), true);
@@ -132,7 +155,7 @@ class TransporterTest extends AbstractTestCase
         $this->assertEquals($yaml, $php);
 
         $this->assertException(new \DomainException("is not supported"), function () {
-            $this->transporter->exportDML(self::$tmpdir . '/hoge.ext', array(), array());
+            $this->transporter->exportDML(self::$tmpdir . '/hoge.ext');
         });
     }
 
@@ -200,7 +223,7 @@ class TransporterTest extends AbstractTestCase
 
         $supported = array('sql', 'php', 'json', 'yaml', 'csv');
         foreach ($supported as $ext) {
-            $this->transporter->exportDML(self::$tmpdir . "/fuga.$ext", array(), array());
+            $this->transporter->exportDML(self::$tmpdir . "/fuga.$ext");
         }
         foreach ($supported as $ext) {
             $this->old->delete('fuga', array(0));
@@ -302,7 +325,7 @@ array (
         ));
 
         foreach ($supported as $ext => $expected) {
-            $this->transporter->exportDML(self::$tmpdir . "/hoge.$ext", array(), array());
+            $this->transporter->exportDML(self::$tmpdir . "/hoge.$ext");
             $this->assertStringEqualsFile(self::$tmpdir . "/hoge.$ext", $expected);
         }
         foreach ($supported as $ext => $expected) {

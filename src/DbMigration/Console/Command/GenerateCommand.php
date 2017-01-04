@@ -18,6 +18,8 @@ class GenerateCommand extends Command
         $this->setName('dbal:generate')->setDescription('Generate to Record file.');
         $this->setDefinition(array(
             new InputArgument('files', InputArgument::REQUIRED | InputArgument::IS_ARRAY, 'Definitation files. First argument is meaned schema.'),
+            new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables pattern (enable comma separated value)'),
+            new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables pattern (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column.'),
             new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
@@ -45,6 +47,8 @@ EOT
         $files = $this->normalizeFile($input);
 
         // option
+        $includes = (array) $input->getOption('include');
+        $excludes = (array) $input->getOption('exclude');
         $wheres = (array) $input->getOption('where') ?: array();
         $ignores = (array) $input->getOption('ignore') ?: array();
 
@@ -54,7 +58,7 @@ EOT
         // export sql files from argument
         $transporter = new Transporter($conn);
         $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
-        $ddl = $transporter->exportDDL(array_shift($files));
+        $ddl = $transporter->exportDDL(array_shift($files), $includes, $excludes);
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
             $output->writeln($ddl);
         }

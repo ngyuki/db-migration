@@ -72,7 +72,7 @@ class Transporter
         $this->encodings[$ext] = $encoding;
     }
 
-    public function exportDDL($filename)
+    public function exportDDL($filename, $includes = array(), $excludes = array())
     {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
 
@@ -80,6 +80,9 @@ class Transporter
         if ($ext === 'sql') {
             $creates = $alters = array();
             foreach ($this->schema->getTables() as $table) {
+                if ($this->filterTable($table->getName(), $includes, $excludes) > 0) {
+                    continue;
+                }
                 $sqls = $this->platform->getCreateTableSQL($table, AbstractPlatform::CREATE_INDEXES | AbstractPlatform::CREATE_FOREIGNKEYS);
                 $creates[] = \SqlFormatter::format(array_shift($sqls), false);
                 $alters = array_merge($alters, $sqls);
@@ -93,6 +96,9 @@ class Transporter
                 'table'    => array(),
             );
             foreach ($this->schema->getTables() as $table) {
+                if ($this->filterTable($table->getName(), $includes, $excludes) > 0) {
+                    continue;
+                }
                 $tarray = $this->tableToArray($table);
                 $schemaArray['table'][$table->getName()] = $tarray;
             }
@@ -118,7 +124,7 @@ class Transporter
         return $content;
     }
 
-    public function exportDML($filename, $filterCondition, $ignoreColumn)
+    public function exportDML($filename, $filterCondition = array(), $ignoreColumn = array())
     {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
 
@@ -416,6 +422,34 @@ class Transporter
         }
 
         return $table;
+    }
+
+    private function filterTable($tablename, $includes, $excludes)
+    {
+        // filter from includes
+        $flag = count($includes) > 0;
+        foreach ($includes as $include) {
+            foreach (array_map('trim', explode(',', $include)) as $regex) {
+                if (preg_match("@$regex@i", $tablename)) {
+                    $flag = false;
+                    break;
+                }
+            }
+        }
+        if ($flag) {
+            return 1;
+        }
+
+        // filter from excludes
+        foreach ($excludes as $exclude) {
+            foreach (array_map('trim', explode(',', $exclude)) as $regex) {
+                if (preg_match("@$regex@i", $tablename)) {
+                    return 2;
+                }
+            }
+        }
+
+        return 0;
     }
 
     private function explodeSql($sqls)
