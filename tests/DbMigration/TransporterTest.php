@@ -181,6 +181,35 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function exportDML_closure()
+    {
+        $array = var_export(array(
+            array(
+                'id'   => '1',
+                'name' => 'name1',
+                'data' => '1.1',
+            ),
+            array(
+                'id'   => '2',
+                'name' => 'name2',
+                'data' => '1.2',
+            ),
+            array(
+                'id'   => '3',
+                'name' => 'name3',
+                'data' => '1.3',
+            ),
+        ), true);
+        $contents = "<?php return function(){return $array;};";
+        file_put_contents(self::$tmpdir . "/hoge.php", $contents);
+        $result = $this->transporter->exportDML(self::$tmpdir . "/hoge.php");
+        $this->assertContains('skipped', $result);
+        $this->assertStringEqualsFile(self::$tmpdir . "/hoge.php", $contents);
+    }
+
+    /**
+     * @test
+     */
     function exportDML_where()
     {
         $this->transporter->exportDML(self::$tmpdir . '/hoge.sql', array('id=2'), array());
@@ -281,6 +310,34 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function importDML_closure()
+    {
+        $array = var_export(array(
+            array(
+                'id'   => '1',
+                'name' => 'name1',
+                'data' => '1.1',
+            ),
+            array(
+                'id'   => '2',
+                'name' => 'name2',
+                'data' => '1.2',
+            ),
+            array(
+                'id'   => '3',
+                'name' => 'name3',
+                'data' => '1.3',
+            ),
+        ), true);
+        file_put_contents(self::$tmpdir . "/hoge.php", "<?php return function(){return $array;};");
+        $this->old->delete('hoge', array(0));
+        $this->transporter->importDML(self::$tmpdir . "/hoge.php");
+        $this->assertEquals(3, $this->old->fetchColumn('SELECT COUNT(*) FROM hoge'));
+    }
+
+    /**
+     * @test
+     */
     function implicit()
     {
         $this->transporter->exportDDL(self::$tmpdir . '/table.yml');
@@ -332,6 +389,13 @@ class TransporterTest extends AbstractTestCase
         $this->transporter->setEncoding('yaml', 'SJIS-win');
         $this->transporter->setEncoding('csv', 'SJIS-win');
 
+        $records = array(
+            array (
+                'id' => '1',
+                'name' => 'あいうえお',
+                'data' => '3.14',
+            )
+        );
         $supported = array(
             'sql'  => "INSERT INTO `hoge` (`id`, `name`, `data`) VALUES ('1', 'あいうえお', '3.14');
 ",

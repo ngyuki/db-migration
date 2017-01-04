@@ -182,6 +182,10 @@ class Transporter
                 $result = implode("\n", $result) . "\n";
                 break;
             case 'php':
+                // through if callback
+                if (file_exists($filename) && (require $filename) instanceof \Closure) {
+                    return "'$filename' is skipped.";
+                }
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
                     $result[] = var_export($scanner->fillDefaultValue($row), true);
@@ -300,7 +304,10 @@ class Transporter
                 $this->connection->exec($contents);
                 return $this->explodeSql($contents);
             case 'php':
-                $rows = include($filename);
+                $rows = require $filename;
+                if ($rows instanceof \Closure) {
+                    $rows = $rows($this->connection);
+                }
                 self::mb_convert_variables($to_encoding, $encoding, $rows);
                 break;
             case 'json':
