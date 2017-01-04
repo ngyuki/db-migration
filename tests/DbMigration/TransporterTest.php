@@ -231,6 +231,31 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function ordered()
+    {
+        $method = $this->refClass->getMethod('tableToArray');
+        $method->setAccessible(true);
+
+        $table = new Table('ordered');
+        $table->addColumn('id1', 'integer');
+        $table->addColumn('id2', 'integer');
+        $table->addColumn('id3', 'integer');
+        $table->addIndex(array('id1'), 'idx_zzz');
+        $table->addIndex(array('id2'), 'idx_yyy');
+        $table->addIndex(array('id3'), 'idx_xxx');
+        $table->setPrimaryKey(array('id1', 'id2', 'id3'));
+        $table->addForeignKeyConstraint('parent', array('id1'), array('id'), array(), 'fk_zzz');
+        $table->addForeignKeyConstraint('parent', array('id2'), array('id'), array(), 'fk_yyy');
+        $table->addForeignKeyConstraint('parent', array('id3'), array('id'), array(), 'fk_xxx');
+
+        $tablearray = $method->invoke($this->transporter, $table);
+        $this->assertEquals(array('primary', 'idx_xxx', 'idx_yyy', 'idx_zzz'), array_keys($tablearray['index']));
+        $this->assertEquals(array('fk_xxx', 'fk_yyy', 'fk_zzz'), array_keys($tablearray['foreign']));
+    }
+
+    /**
+     * @test
+     */
     function encoding()
     {
         $this->transporter->setEncoding('sql', 'SJIS-win');

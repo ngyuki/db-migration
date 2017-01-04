@@ -3,6 +3,8 @@ namespace ryunosuke\DbMigration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Schema\ForeignKeyConstraint;
+use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Symfony\Component\Yaml\Yaml;
@@ -335,7 +337,14 @@ class Transporter
         }
 
         // add indexes
-        foreach ($table->getIndexes() as $index) {
+        $indexes = $table->getIndexes();
+        uasort($indexes, function (Index $a, Index $b) {
+            if ($a->isPrimary()) {
+                return -1;
+            }
+            return strcmp($a->getName(), $b->getName());
+        });
+        foreach ($indexes as $index) {
             // ignore implicit index
             if ($index->hasFlag('implicit')) {
                 continue;
@@ -352,7 +361,11 @@ class Transporter
         }
 
         // add foreign keys
-        foreach ($table->getForeignKeys() as $fkey) {
+        $fkeys = $table->getForeignKeys();
+        uasort($fkeys, function (ForeignKeyConstraint $a, ForeignKeyConstraint $b) {
+            return strcmp($a->getName(), $b->getName());
+        });
+        foreach ($fkeys as $fkey) {
             $entry['foreign'][$fkey->getName()] = array(
                 'table'  => $fkey->getForeignTableName(),
                 'column' => array_combine($fkey->getLocalColumns(), $fkey->getForeignColumns()),
