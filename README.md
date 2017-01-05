@@ -79,6 +79,9 @@ Arguments:
   files                              Definitation files. First argument is meaned schema.
 
 Options:
+      --noview                       No migration View.
+  -i, --include[=INCLUDE]            Target tables pattern (enable comma separated value) (multiple values allowed)
+  -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
   -w, --where[=WHERE]                Where condition. (multiple values allowed)
   -g, --ignore[=IGNORE]              Ignore column. (multiple values allowed)
       --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
@@ -98,18 +101,27 @@ files 引数でエクスポートするファイルを指定します。
 #### files
 
 1つ目のファイルは DDL として出力されます。主にテーブル定義と外部キー制約です。
-2つ目以降のファイルは DDL として出力されます。要するにレコード配列です。
+2つ目以降のファイルは DML として出力されます。要するにレコード配列です。
 
 ファイル名とテーブル名が対応します（hoge.sql で hoge テーブルが対象）。
 
 そのとき、拡張子で挙動が変わります。
 
 - .sql プレーンな SQL で出力します
-- .php php の配列で出力します
+- .php php の配列で出力します。ファイルが既に存在し、Closure を返すファイルの場合はスキップされます
 - .json json 形式で出力します
 - .yaml yaml 形式で出力します
 - .csv csv 形式で出力します（DML のみ）
 - 上記以外は例外
+
+#### --include, --exclude
+
+出力対象テーブルを指定します。正規表現です。
+
+評価順位は `include` -> `exclude` です。`exclude` で指定したテーブルが出力されることはありません。
+なお、`include` 未指定時はすべてのテーブルが対象になります。
+
+このオプションは DDL のみに適用されます。
 
 #### --where (-w)
 
@@ -144,8 +156,9 @@ Options:
   -d, --dsn[=DSN]                    Specify destination DSN (default create temporary database) suffix based on cli-config
   -s, --schema[=SCHEMA]              Specify destination database name (default `md5(filemtime(files))`)
   -t, --type[=TYPE]                  Migration SQL type (ddl, dml. default both)
-  -i, --include[=INCLUDE]            Target tables (enable comma separated value) (multiple values allowed)
-  -e, --exclude[=EXCLUDE]            Except tables (enable comma separated value) (multiple values allowed)
+      --noview                       No migration View.
+  -i, --include[=INCLUDE]            Target tables pattern (enable comma separated value) (multiple values allowed)
+  -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
   -w, --where[=WHERE]                Where condition. (multiple values allowed)
   -g, --ignore[=IGNORE]              Ignore column for DML. (multiple values allowed)
       --format[=FORMAT]              Format output SQL (none, pretty, format, highlight or compress. default pretty) [default: "pretty"]
@@ -165,7 +178,21 @@ Options:
   -v|vv|vvv, --verbose               Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 ```
 
-files 引数でインポートする sql ファイルを指定します。
+#### files
+
+1つ目のファイルは DDL として入力されます。主にテーブル定義と外部キー制約です。
+2つ目以降のファイルは DML として出力されます。要するにレコード配列です。
+
+ファイル名とテーブル名が対応します（hoge.sql で hoge テーブルが対象）。
+
+そのとき、拡張子で挙動が変わります。
+
+- .sql プレーンな SQL として入力されます。ファイル内容がそのまま実行されるため、レコード配列である必要はありません
+- .php php の配列として入力されます。Closure を返す場合、その実行結果が行配列として読み込まれます。その際の引数は `\Doctrine\DBAL\Connection` です
+- .json json 形式として入力されます
+- .yaml yaml 形式として入力されます
+- .csv csv 形式として入力されます（DML のみ）
+
 
 `--help` 以下は dbal 標準のプションです。
 
