@@ -54,8 +54,9 @@ class MigrateCommand extends Command
             new InputOption('dsn', 'd', InputOption::VALUE_OPTIONAL, 'Specify destination DSN (default create temporary database) suffix based on cli-config'),
             new InputOption('schema', 's', InputOption::VALUE_OPTIONAL, 'Specify destination database name (default `md5(filemtime(files))`)'),
             new InputOption('type', 't', InputOption::VALUE_OPTIONAL, 'Migration SQL type (ddl, dml. default both)'),
-            new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables (enable comma separated value)'),
-            new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables (enable comma separated value)'),
+            new InputOption('noview', null, InputOption::VALUE_NONE, 'No migration View.'),
+            new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables pattern (enable comma separated value)'),
+            new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables pattern (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column for DML.'),
             new InputOption('format', null, InputOption::VALUE_OPTIONAL, 'Format output SQL (none, pretty, format, highlight or compress. default pretty)', 'pretty'),
@@ -275,6 +276,7 @@ EOT
 
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
+                $transporter->enableView(!$input->getOption('noview'));
                 $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
                 $ddlfile = array_shift($files);
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
@@ -356,13 +358,14 @@ EOT
 
         $includes = (array) $input->getOption('include');
         $excludes = (array) $input->getOption('exclude');
+        $noview = $input->getOption('noview');
 
         $confirm = $this->getQuestionHelper();
 
         $output->writeln("-- <comment>diff DDL</comment>");
 
         // get ddl
-        $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes);
+        $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes, $noview);
         if (!$sqls) {
             $output->writeln("-- no diff schema.");
             return;

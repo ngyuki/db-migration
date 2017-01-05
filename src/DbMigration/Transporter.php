@@ -3,7 +3,9 @@ namespace ryunosuke\DbMigration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
-use Doctrine\DBAL\Schema\Schema;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\ForeignKeyConstraint;
+use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Table;
 use Symfony\Component\Yaml\Yaml;
 
@@ -20,9 +22,14 @@ class Transporter
     private $platform;
 
     /**
-     * @var Schema
+     * @var AbstractSchemaManager
      */
     private $schema;
+
+    /**
+     * @var bool
+     */
+    private $viewEnabled = true;
 
     /**
      * @var array
@@ -62,7 +69,12 @@ class Transporter
     {
         $this->connection = $connection;
         $this->platform = $connection->getDatabasePlatform();
-        $this->schema = $connection->getSchemaManager()->createSchema();
+        $this->schema = $connection->getSchemaManager();
+    }
+
+    public function enableView($enabled)
+    {
+        $this->viewEnabled = $enabled;
     }
 
     public function setEncoding($ext, $encoding)
@@ -70,29 +82,56 @@ class Transporter
         $this->encodings[$ext] = $encoding;
     }
 
-    public function exportDDL($filename)
+    public function exportDDL($filename, $includes = array(), $excludes = array())
     {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
 
         // SQL is special
         if ($ext === 'sql') {
-            $creates = $alters = array();
-            foreach ($this->schema->getTables() as $table) {
+            $creates = $alters = $views = array();
+            foreach ($this->schema->listTables() as $table) {
+                if (Migrator::filterTable($table->getName(), $includes, $excludes) > 0) {
+                    continue;
+                }
                 $sqls = $this->platform->getCreateTableSQL($table, AbstractPlatform::CREATE_INDEXES | AbstractPlatform::CREATE_FOREIGNKEYS);
                 $creates[] = \SqlFormatter::format(array_shift($sqls), false);
                 $alters = array_merge($alters, $sqls);
             }
-            $content = implode(";\n", array_merge($creates, $alters)) . ";\n";
+            if ($this->viewEnabled) {
+                foreach ($this->schema->listViews() as $view) {
+                    if (Migrator::filterTable($view->getName(), $includes, $excludes) > 0) {
+                        continue;
+                    }
+                    $sql = $this->platform->getCreateViewSQL($view->getName(), $view->getSql());
+                    $views[] = \SqlFormatter::format($sql, false);
+                }
+            }
+            $content = implode(";\n", array_merge($creates, $alters, $views)) . ";\n";
         }
         else {
             // generate schema array
             $schemaArray = array(
                 'platform' => $this->platform->getName(),
                 'table'    => array(),
+                'view'     => array(),
             );
-            foreach ($this->schema->getTables() as $table) {
+            foreach ($this->schema->listTables() as $table) {
+                if (Migrator::filterTable($table->getName(), $includes, $excludes) > 0) {
+                    continue;
+                }
                 $tarray = $this->tableToArray($table);
                 $schemaArray['table'][$table->getName()] = $tarray;
+            }
+            if ($this->viewEnabled) {
+                foreach ($this->connection->getSchemaManager()->listViews() as $view) {
+                    if (Migrator::filterTable($view->getName(), $includes, $excludes) > 0) {
+                        continue;
+                    }
+                    $varray = array(
+                        'sql' => $view->getSql(),
+                    );
+                    $schemaArray['view'][$view->getName()] = $varray;
+                }
             }
 
             // by Data Description Language
@@ -116,13 +155,13 @@ class Transporter
         return $content;
     }
 
-    public function exportDML($filename, $filterCondition, $ignoreColumn)
+    public function exportDML($filename, $filterCondition = array(), $ignoreColumn = array())
     {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
 
         // create TableScanner
         $tablename = basename($filename, ".$ext");
-        $table = $this->schema->getTable($tablename);
+        $table = $this->schema->listTableDetails($tablename);
         $scanner = new TableScanner($this->connection, $table, $filterCondition, $ignoreColumn);
 
         // for too many records
@@ -143,6 +182,10 @@ class Transporter
                 $result = implode("\n", $result) . "\n";
                 break;
             case 'php':
+                // through if callback
+                if (file_exists($filename) && (require $filename) instanceof \Closure) {
+                    return "'$filename' is skipped.";
+                }
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
                     $result[] = var_export($scanner->fillDefaultValue($row), true);
@@ -221,15 +264,20 @@ class Transporter
             }
         }
 
-        $creates = $alters = array();
+        $creates = $alters = $views = array();
         foreach ($schemaArray['table'] as $name => $tarray) {
             $table = $this->tableFromArray($name, $tarray);
             $sqls = $this->platform->getCreateTableSQL($table, AbstractPlatform::CREATE_INDEXES | AbstractPlatform::CREATE_FOREIGNKEYS);
             $creates[] = array_shift($sqls);
             $alters = array_merge($alters, $sqls);
         }
+        if ($this->viewEnabled) {
+            foreach ($schemaArray['view'] as $name => $varray) {
+                $views[] = $this->platform->getCreateViewSQL($name, $varray['sql']);
+            }
+        }
 
-        $sqls = array_merge($creates, $alters);
+        $sqls = array_merge($creates, $alters, $views);
         foreach ($sqls as $sql) {
             $this->connection->exec($sql);
         }
@@ -256,7 +304,10 @@ class Transporter
                 $this->connection->exec($contents);
                 return $this->explodeSql($contents);
             case 'php':
-                $rows = include($filename);
+                $rows = require $filename;
+                if ($rows instanceof \Closure) {
+                    $rows = $rows($this->connection);
+                }
                 self::mb_convert_variables($to_encoding, $encoding, $rows);
                 break;
             case 'json':
@@ -335,7 +386,14 @@ class Transporter
         }
 
         // add indexes
-        foreach ($table->getIndexes() as $index) {
+        $indexes = $table->getIndexes();
+        uasort($indexes, function (Index $a, Index $b) {
+            if ($a->isPrimary()) {
+                return -1;
+            }
+            return strcmp($a->getName(), $b->getName());
+        });
+        foreach ($indexes as $index) {
             // ignore implicit index
             if ($index->hasFlag('implicit')) {
                 continue;
@@ -352,7 +410,11 @@ class Transporter
         }
 
         // add foreign keys
-        foreach ($table->getForeignKeys() as $fkey) {
+        $fkeys = $table->getForeignKeys();
+        uasort($fkeys, function (ForeignKeyConstraint $a, ForeignKeyConstraint $b) {
+            return strcmp($a->getName(), $b->getName());
+        });
+        foreach ($fkeys as $fkey) {
             $entry['foreign'][$fkey->getName()] = array(
                 'table'  => $fkey->getForeignTableName(),
                 'column' => array_combine($fkey->getLocalColumns(), $fkey->getForeignColumns()),

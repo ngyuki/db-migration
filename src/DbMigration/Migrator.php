@@ -15,23 +15,44 @@ class Migrator
      * @param Connection $new
      * @param array $includes
      * @param array $excludes
+     * @param bool $noview
      * @return array
      */
-    static public function getDDL($old, $new, $includes = array(), $excludes = array())
+    static public function getDDL($old, $new, $includes = array(), $excludes = array(), $noview = false)
     {
         $platform = $old->getDatabasePlatform();
         $fromSchema = $old->getSchemaManager()->createSchema();
         $toSchema = $new->getSchemaManager()->createSchema();
         $diff = Comparator::compareSchemas($fromSchema, $toSchema);
 
-        // @codeCoverageIgnoreStart
-        if (method_exists($diff, 'toFilterSql')) {
-            return $diff->toFilterSql($platform, $includes, $excludes);
+        foreach ($diff->newTables as $name => $table) {
+            $filterdResult = self::filterTable($name, $includes, $excludes);
+            if ($filterdResult > 0) {
+                unset($diff->newTables[$name]);
+            }
         }
-        else {
-            return $diff->toSql($platform);
+
+        foreach ($diff->changedTables as $name => $table) {
+            $filterdResult = self::filterTable($name, $includes, $excludes);
+            if ($filterdResult > 0) {
+                unset($diff->changedTables[$name]);
+            }
         }
-        // @codeCoverageIgnoreEnd
+
+        foreach ($diff->removedTables as $name => $table) {
+            $filterdResult = self::filterTable($name, $includes, $excludes);
+            if ($filterdResult > 0) {
+                unset($diff->removedTables[$name]);
+            }
+        }
+
+        if ($noview) {
+            $diff->newViews = array();
+            $diff->changedViews = array();
+            $diff->removedViews = array();
+        }
+
+        return $diff->toSql($platform);
     }
 
     /**
@@ -96,5 +117,33 @@ class Migrator
         }
 
         return $dmls;
+    }
+
+    static public function filterTable($tablename, $includes, $excludes)
+    {
+        // filter from includes
+        $flag = count($includes) > 0;
+        foreach ($includes as $include) {
+            foreach (array_map('trim', explode(',', $include)) as $regex) {
+                if (preg_match("@$regex@i", $tablename)) {
+                    $flag = false;
+                    break;
+                }
+            }
+        }
+        if ($flag) {
+            return 1;
+        }
+
+        // filter from excludes
+        foreach ($excludes as $exclude) {
+            foreach (array_map('trim', explode(',', $exclude)) as $regex) {
+                if (preg_match("@$regex@i", $tablename)) {
+                    return 2;
+                }
+            }
+        }
+
+        return 0;
     }
 }

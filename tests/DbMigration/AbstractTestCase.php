@@ -57,6 +57,8 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
     {
         parent::setUp();
 
+        array_map('unlink', glob(self::$tmpdir . '/*'));
+
         // drop schema
         $this->connection = $this->getConnection('old', '');
         $schema = $this->connection->getSchemaManager();
