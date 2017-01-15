@@ -9,6 +9,11 @@ use Doctrine\DBAL\Schema\Schema;
 class Migrator
 {
     /**
+     * @var Schema[]
+     */
+    private static $schemas;
+
+    /**
      * diff schema, get DDL
      *
      * @param Connection $old
@@ -20,10 +25,7 @@ class Migrator
      */
     static public function getDDL($old, $new, $includes = array(), $excludes = array(), $noview = false)
     {
-        $platform = $old->getDatabasePlatform();
-        $fromSchema = $old->getSchemaManager()->createSchema();
-        $toSchema = $new->getSchemaManager()->createSchema();
-        $diff = Comparator::compareSchemas($fromSchema, $toSchema);
+        $diff = Comparator::compareSchemas(self::getSchema($old), self::getSchema($new));
 
         foreach ($diff->newTables as $name => $table) {
             $filterdResult = self::filterTable($name, $includes, $excludes);
@@ -52,7 +54,7 @@ class Migrator
             $diff->removedViews = array();
         }
 
-        return $diff->toSql($platform);
+        return $diff->toSql($old->getDatabasePlatform());
     }
 
     /**
@@ -68,27 +70,12 @@ class Migrator
      */
     static public function getDML($old, $new, $table, array $wheres = array(), array $ignores = array())
     {
-        /** @var Schema[] $schemaCache */
-        static $schemaCache = array();
-
-        // cache $schema
-        $oldid = spl_object_hash($old);
-        if (!isset($schemaCache[$oldid])) {
-            $schemaCache[$oldid] = $old->getSchemaManager()->createSchema();
-        }
-        $newid = spl_object_hash($new);
-        if (!isset($schemaCache[$newid])) {
-            $schemaCache[$newid] = $new->getSchemaManager()->createSchema();
-        }
-
-        // get schema
-        $oldSchema = $schemaCache[$oldid];
-        $newSchema = $schemaCache[$newid];
-
         // result dmls
         $dmls = array();
 
         // scanner objects
+        $oldSchema = self::getSchema($old);
+        $newSchema = self::getSchema($new);
         $oldScanner = new TableScanner($old, $oldSchema->getTable($table), $wheres, $ignores);
         $newScanner = new TableScanner($new, $newSchema->getTable($table), $wheres, $ignores);
 
@@ -117,6 +104,21 @@ class Migrator
         }
 
         return $dmls;
+    }
+
+    static public function setSchema(Connection $connection, Schema $schema = null)
+    {
+        $id = spl_object_hash($connection->getWrappedConnection());
+        self::$schemas[$id] = $schema;
+    }
+
+    static public function getSchema(Connection $connection)
+    {
+        $id = spl_object_hash($connection->getWrappedConnection());
+        if (!isset(self::$schemas[$id])) {
+            self::$schemas[$id] = $connection->getSchemaManager()->createSchema();
+        }
+        return self::$schemas[$id];
     }
 
     static public function filterTable($tablename, $includes, $excludes)

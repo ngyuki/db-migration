@@ -59,6 +59,10 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
 
         array_map('unlink', glob(self::$tmpdir . '/*'));
 
+        $ref = new \ReflectionProperty('ryunosuke\\DbMigration\\Migrator', 'schemas');
+        $ref->setAccessible(true);
+        $ref->setValue(array());
+
         // drop schema
         $this->connection = $this->getConnection('old', '');
         $schema = $this->connection->getSchemaManager();

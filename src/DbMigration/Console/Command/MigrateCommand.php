@@ -371,6 +371,7 @@ EOT
             return;
         }
 
+        $execed = false;
         foreach ($sqls as $sql) {
             // display sql(formatted)
             $this->writeSql($input, $output, $sql);
@@ -380,6 +381,7 @@ EOT
                 if (!$dryrun) {
                     try {
                         $srcConn->exec($sql);
+                        $execed = true;
                     }
                     catch (\Exception $e) {
                         $output->writeln('/* <error>' . $e->getMessage() . '</error> */');
@@ -389,6 +391,11 @@ EOT
                     }
                 }
             }
+        }
+
+        // reconnect if exec ddl. for recreate schema (Migrator::getSchema)
+        if ($execed) {
+            Migrator::setSchema($srcConn, null);
         }
     }
 
