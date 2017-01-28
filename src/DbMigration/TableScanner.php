@@ -475,6 +475,16 @@ class TableScanner
             return '(' . implode(' AND ', $and) . ')';
         }
         else {
+            $first = reset($whereArray);
+            if (count($first) === 1) {
+                reset($first);
+                $column = key($first);
+                $values = array();
+                foreach ($whereArray as $where) {
+                    $values[] = $this->conn->quote($where[$column]);
+                }
+                return '(' . $this->conn->quoteIdentifier($column) . ' IN (' . implode(',', $values) . '))';
+            }
             $or = array();
             foreach ($whereArray as $values) {
                 $or[] = $this->buildWhere($values);

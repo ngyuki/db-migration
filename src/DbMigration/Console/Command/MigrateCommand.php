@@ -3,6 +3,7 @@ namespace ryunosuke\DbMigration\Console\Command;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Schema\Table;
 use ryunosuke\DbMigration\Console\CancelException;
 use ryunosuke\DbMigration\MigrationException;
 use ryunosuke\DbMigration\Migrator;
@@ -371,6 +372,7 @@ EOT
             return;
         }
 
+        $execed = false;
         foreach ($sqls as $sql) {
             // display sql(formatted)
             $this->writeSql($input, $output, $sql);
@@ -380,6 +382,7 @@ EOT
                 if (!$dryrun) {
                     try {
                         $srcConn->exec($sql);
+                        $execed = true;
                     }
                     catch (\Exception $e) {
                         $output->writeln('/* <error>' . $e->getMessage() . '</error> */');
@@ -389,6 +392,11 @@ EOT
                     }
                 }
             }
+        }
+
+        // reconnect if exec ddl. for recreate schema (Migrator::getSchema)
+        if ($execed) {
+            Migrator::setSchema($srcConn, null);
         }
     }
 
@@ -411,43 +419,29 @@ EOT
 
         $output->writeln("-- <comment>diff DML</comment>");
 
-        $tables = $dstConn->getSchemaManager()->listTableNames();
-        $maxlength = $tables ? max(array_map('strlen', $tables)) + 1 : 0;
+        $dsttables = Migrator::getSchema($dstConn)->getTables();
+        $maxlength = $dsttables ? max(array_map(function (Table $table) { return strlen($table->getName()); }, $dsttables)) + 1 : 0;
         $dmlflag = false;
-        foreach ($tables as $table) {
-            $title = sprintf("<info>%-{$maxlength}s</info>", $table);
+        foreach ($dsttables as $table) {
+            $tablename = $table->getName();
+            $title = sprintf("<info>%-{$maxlength}s</info>", $tablename);
 
-            // skip to not contain include tables
-            $flag = count($includes) > 0;
-            foreach ($includes as $target) {
-                foreach (array_map('trim', explode(',', $target)) as $regex) {
-                    if (preg_match("@$regex@", $table)) {
-                        $flag = false;
-                        break;
-                    }
-                }
-            }
-            if ($flag) {
+            $filtered = Migrator::filterTable($tablename, $includes, $excludes);
+            if ($filtered === 1) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by include option.");
                 }
                 continue;
             }
-
-            // skip to contain exclude tables
-            foreach ($excludes as $except) {
-                foreach (array_map('trim', explode(',', $except)) as $regex) {
-                    if (preg_match("@$regex@", $table)) {
-                        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                            $output->writeln("-- $title is skipped by exclude option.");
-                        }
-                        continue 3;
-                    }
+            else if ($filtered === 2) {
+                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                    $output->writeln("-- $title is skipped by exclude option.");
                 }
+                continue;
             }
 
             // skip to not exists tables
-            if (!$srcConn->getSchemaManager()->tablesExist($table)) {
+            if (!Migrator::getSchema($srcConn)->hasTable($tablename)) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by not exists.");
                 }
@@ -455,7 +449,7 @@ EOT
             }
 
             // skip no has record
-            if (!$dstConn->fetchColumn("select COUNT(*) from $table")) {
+            if (!$dstConn->fetchColumn("select COUNT(*) from $tablename")) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                     $output->writeln("-- $title is skipped by no record.");
                 }
@@ -465,7 +459,7 @@ EOT
             // get dml
             $sqls = null;
             try {
-                $sqls = Migrator::getDML($srcConn, $dstConn, $table, $wheres, $ignores);
+                $sqls = Migrator::getDML($srcConn, $dstConn, $tablename, $wheres, $ignores);
             }
             catch (MigrationException $ex) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {

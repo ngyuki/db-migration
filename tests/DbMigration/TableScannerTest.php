@@ -13,7 +13,7 @@ class TableScannerTest extends AbstractTestCase
     /**
      * @var TableScanner
      */
-    private $scanner;
+    private $scanner, $scanner_fuga;
 
     /**
      * @var \ReflectionClass
@@ -24,11 +24,20 @@ class TableScannerTest extends AbstractTestCase
     {
         parent::setUp();
 
-        $table = $this->createSimpleTable('hoge', 'integer', 'id');
-        $this->oldSchema->dropAndCreateTable($table);
+        $table_hoge = $this->createSimpleTable('hoge', 'integer', 'id');
+        $this->oldSchema->dropAndCreateTable($table_hoge);
 
-        $this->scanner = new TableScanner($this->old, $table, 'TRUE');
+        $table_fuga = new Table('fuga');
+        $table_fuga->addColumn('id1', 'integer');
+        $table_fuga->addColumn('id2', 'integer');
+        $table_fuga->addColumn('data', 'string');
+        $table_fuga->setPrimaryKey(array('id1', 'id2'));
+        $this->oldSchema->dropAndCreateTable($table_fuga);
+
+        $this->scanner = new TableScanner($this->old, $table_hoge, 'TRUE');
         $this->refClass = new \ReflectionClass($this->scanner);
+
+        $this->scanner_fuga = new TableScanner($this->old, $table_fuga, 'TRUE');
     }
 
     private function invoke($methodName, $args)
@@ -100,6 +109,28 @@ class TableScannerTest extends AbstractTestCase
     /**
      * @test
      */
+    function getRecordFromPrimaryKeys_multi()
+    {
+        $rows = array_map(function ($i) {
+            return array(
+                'id1'  => $i,
+                'id2'  => $i,
+                'data' => $i,
+            );
+        }, range(1, 10));
+        $this->insertMultiple($this->old, 'fuga', $rows);
+
+        $tuples = $this->scanner_fuga->getPrimaryRows();
+
+        $refmethod = new \ReflectionMethod($this->scanner_fuga, 'getRecordFromPrimaryKeys');
+        $refmethod->setAccessible(true);
+
+        $this->assertEquals($rows, $refmethod->invoke($this->scanner_fuga, $tuples, false)->fetchAll());
+    }
+
+    /**
+     * @test
+     */
     function getRecordFromPrimaryKeys_page()
     {
         $this->insertMultiple($this->old, 'hoge', array_map(function ($i) {
@@ -117,6 +148,26 @@ class TableScannerTest extends AbstractTestCase
         $this->assertCount(4, $this->invoke($method, $tuples, true, 1)->fetchAll());
         $this->assertCount(2, $this->invoke($method, $tuples, true, 2)->fetchAll());
         $this->assertCount(0, $this->invoke($method, $tuples, true, 3)->fetchAll());
+    }
+
+    /**
+     * @test
+     */
+    function buildWhere()
+    {
+        $method = 'buildWhere';
+
+        $expected = "((`id`    = '1' AND `subid` = '1') OR (`id`    = '1' AND `subid` = '2'))";
+        $this->assertEquals($expected, $this->invoke($method, array(
+            array('id' => 1, 'subid' => 1),
+            array('id' => 1, 'subid' => 2),
+        )));
+
+        $expected = "(`id` IN ('1','2'))";
+        $this->assertEquals($expected, $this->invoke($method, array(
+            array('id' => 1),
+            array('id' => 2),
+        )));
     }
 
     /**
