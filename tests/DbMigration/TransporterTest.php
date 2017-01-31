@@ -389,13 +389,6 @@ class TransporterTest extends AbstractTestCase
         $this->transporter->setEncoding('yaml', 'SJIS-win');
         $this->transporter->setEncoding('csv', 'SJIS-win');
 
-        $records = array(
-            array (
-                'id' => '1',
-                'name' => 'あいうえお',
-                'data' => '3.14',
-            )
-        );
         $supported = array(
             'sql'  => "INSERT INTO `hoge` (`id`, `name`, `data`) VALUES ('1', 'あいうえお', '3.14');
 ",

@@ -325,8 +325,9 @@ class Transporter
                 $rows = array();
                 $header = array();
                 if (($handle = fopen($filename, "r")) !== false) {
-                    while (($data = fgetcsv($handle)) !== false) {
-                        self::mb_convert_variables($to_encoding, $encoding, $data);
+                    while (($line = fgets($handle)) !== false) {
+                        self::mb_convert_variables($to_encoding, $encoding, $line);
+                        $data = str_getcsv($line);
                         // first row is used as CSV header
                         if (!$header) {
                             $header = $data;
