@@ -21,11 +21,12 @@ class MigratorTest extends AbstractTestCase
      * @param string $table
      * @param array $wheres
      * @param array $ignroes
+     * @param array $dmltypes
      * @return array
      */
-    private function getDML($old, $new, $table, $wheres = array(), $ignroes = array())
+    private function getDML($old, $new, $table, $wheres = array(), $ignroes = array(), $dmltypes = array())
     {
-        return Migrator::getDML($old, $new, $table, (array) $wheres, (array) $ignroes);
+        return Migrator::getDML($old, $new, $table, (array) $wheres, (array) $ignroes, (array) $dmltypes);
     }
 
     protected function setup()
@@ -152,6 +153,16 @@ class MigratorTest extends AbstractTestCase
         $dmls1 = $this->getDML($this->old, $this->new, 'foo', 'id = -1');
         $dmls2 = $this->getDML($this->old, $this->new, 'foo', 'id = -1', array('c_int', 'c_float', 'c_varchar'));
         $this->assertEquals($dmls1, $dmls2);
+    }
+
+    /**
+     * @test
+     */
+    function migrate_dml_dmltypes()
+    {
+        // UPDATE は含まれないはず
+        $dmls = $this->getDML($this->old, $this->new, 'foo', array(), array(), array('update' => false));
+        $this->assertCount(4, $dmls);
     }
 
     /**

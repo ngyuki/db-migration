@@ -60,6 +60,9 @@ class MigrateCommand extends Command
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables pattern (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column for DML.'),
+            new InputOption('no-insert', null, InputOption::VALUE_NONE, 'Not contains INSERT DML'),
+            new InputOption('no-delete', null, InputOption::VALUE_NONE, 'Not contains DELETE DML'),
+            new InputOption('no-update', null, InputOption::VALUE_NONE, 'Not contains UPDATE DML'),
             new InputOption('format', null, InputOption::VALUE_OPTIONAL, 'Format output SQL (none, pretty, format, highlight or compress. default pretty)', 'pretty'),
             new InputOption('omit', 'o', InputOption::VALUE_REQUIRED, 'Omit size for long SQL'),
             new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
@@ -415,6 +418,12 @@ EOT
         $wheres = (array) $input->getOption('where') ?: array();
         $ignores = (array) $input->getOption('ignore') ?: array();
 
+        $dmltypes = array(
+            'insert' => !$input->getOption('no-insert'),
+            'delete' => !$input->getOption('no-delete'),
+            'update' => !$input->getOption('no-update'),
+        );
+
         $confirm = $this->getQuestionHelper();
 
         $output->writeln("-- <comment>diff DML</comment>");
@@ -459,7 +468,7 @@ EOT
             // get dml
             $sqls = null;
             try {
-                $sqls = Migrator::getDML($srcConn, $dstConn, $tablename, $wheres, $ignores);
+                $sqls = Migrator::getDML($srcConn, $dstConn, $tablename, $wheres, $ignores, $dmltypes);
             }
             catch (MigrationException $ex) {
                 if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
