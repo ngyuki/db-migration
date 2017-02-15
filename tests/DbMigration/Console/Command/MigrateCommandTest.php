@@ -249,6 +249,27 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_dmltypes()
+    {
+        $result = $this->runApp(array(
+            '-v'          => true,
+            '--type'      => 'dml',
+            '--no-insert' => true,
+            '--no-delete' => true,
+            'files'       => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql')
+            )
+        ));
+
+        $this->assertContains('UPDATE ', $result);
+        $this->assertNotContains('INSERT ', $result);
+        $this->assertNotContains('DELETE ', $result);
+    }
+
+    /**
+     * @test
+     */
     function run_noview()
     {
         $result = $this->runApp(array(

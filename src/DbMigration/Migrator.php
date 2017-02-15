@@ -65,10 +65,11 @@ class Migrator
      * @param string $table
      * @param array $wheres
      * @param array $ignores
+     * @param array $dmltypes
      * @throws DBALException
      * @return array
      */
-    static public function getDML($old, $new, $table, array $wheres = array(), array $ignores = array())
+    static public function getDML($old, $new, $table, array $wheres = array(), array $ignores = array(), $dmltypes = array())
     {
         // result dmls
         $dmls = array();
@@ -88,18 +89,25 @@ class Migrator
         $oldTuples = $oldScanner->getPrimaryRows();
         $newTuples = $newScanner->getPrimaryRows();
 
+        $defaulttypes = array(
+            'insert' => true,
+            'delete' => true,
+            'update' => true,
+        );
+        $dmltypes += $defaulttypes;
+
         // DELETE if old only
-        if ($tuples = array_diff_key($oldTuples, $newTuples)) {
+        if ($dmltypes['delete'] && $tuples = array_diff_key($oldTuples, $newTuples)) {
             $dmls = array_merge($dmls, $oldScanner->getDeleteSql($tuples, $oldScanner));
         }
 
         // UPDATE if common
-        if ($tuples = array_intersect_key($oldTuples, $newTuples)) {
+        if ($dmltypes['update'] && $tuples = array_intersect_key($oldTuples, $newTuples)) {
             $dmls = array_merge($dmls, $oldScanner->getUpdateSql($tuples, $newScanner));
         }
 
         // INSERT if new only
-        if ($tuples = array_diff_key($newTuples, $oldTuples)) {
+        if ($dmltypes['insert'] && $tuples = array_diff_key($newTuples, $oldTuples)) {
             $dmls = array_merge($dmls, $oldScanner->getInsertSql($tuples, $newScanner));
         }
 

@@ -161,6 +161,9 @@ Options:
   -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
   -w, --where[=WHERE]                Where condition. (multiple values allowed)
   -g, --ignore[=IGNORE]              Ignore column for DML. (multiple values allowed)
+      --no-insert                    Not contains INSERT DML
+      --no-delete                    Not contains DELETE DML
+      --no-update                    Not contains UPDATE DML
       --format[=FORMAT]              Format output SQL (none, pretty, format, highlight or compress. default pretty) [default: "pretty"]
   -o, --omit=OMIT                    Omit size for long SQL
       --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
