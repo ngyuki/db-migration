@@ -52,6 +52,7 @@ class MigrateCommand extends Command
         $this->setDefinition(array(
             new InputArgument('files', InputArgument::OPTIONAL | InputArgument::IS_ARRAY, 'SQL files'),
             new InputOption('target', null, InputOption::VALUE_OPTIONAL, 'Specify target DSN (default cli-config)'),
+            new InputOption('source', null, InputOption::VALUE_OPTIONAL, 'Specify source DSN (default cli-config, temporary database)'),
             new InputOption('dsn', 'd', InputOption::VALUE_OPTIONAL, 'Specify destination DSN (default create temporary database) suffix based on cli-config'),
             new InputOption('schema', 's', InputOption::VALUE_OPTIONAL, 'Specify destination database name (default `md5(filemtime(files))`)'),
             new InputOption('type', 't', InputOption::VALUE_OPTIONAL, 'Migration SQL type (ddl, dml. default both)'),
@@ -220,6 +221,7 @@ EOT
 
         $init = $input->getOption('init');
         $rebuild = $input->getOption('rebuild') || $init;
+        $source = $input->getOption('source');
         $url = $input->getOption('dsn');
         $autoyes = $input->getOption('no-interaction');
         $confirm = $this->getQuestionHelper();
@@ -238,15 +240,24 @@ EOT
             $dstParams = $this->parseDsn($url, $srcParams);
         }
         else {
-            $dstParams = $srcParams;
-            $schema = $input->getOption('schema');
-            if ($init) {
-                $schema = $srcParams['dbname'];
-            }
-            if ($schema) {
-                $dstParams['dbname'] = $schema;
+            if ($source) {
+                $tmpParams = $srcParams;
+                unset($tmpParams['dbname']);
+                $dstParams = $this->parseDsn($source, $tmpParams);
             }
             else {
+                $dstParams = $srcParams;
+                unset($dstParams['dbname']);
+            }
+
+            $schema = $input->getOption('schema');
+            if ($init) {
+                $dstParams['dbname'] = $srcParams['dbname'];
+            }
+            else if ($schema) {
+                $dstParams['dbname'] = $schema;
+            }
+            else if (!isset($dstParams['dbname'])) {
                 $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
             }
         }
