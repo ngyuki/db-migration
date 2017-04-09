@@ -153,6 +153,7 @@ Arguments:
 
 Options:
       --target[=TARGET]              Specify target DSN (default cli-config)
+      --source[=SOURCE]              Specify source DSN (default cli-config, temporary database
   -d, --dsn[=DSN]                    Specify destination DSN (default create temporary database) suffix based on cli-config
   -s, --schema[=SCHEMA]              Specify destination database name (default `md5(filemtime(files))`)
   -t, --type[=TYPE]                  Migration SQL type (ddl, dml. default both)
@@ -211,6 +212,13 @@ DSN は `rdbms://user:pass@hostname/dbname?option=value` のような URL 形式
 
 前述の「原則として～」を**覆す唯一のオプション**です。
 このオプションを指定しないかぎり比較元は常に cli-config の connection です。
+
+#### --source
+
+一時スキーマデーターベースを作成する場所を DSN で指定します。
+未指定時は `cli-config` で指定された場所＋ランダムスキーマになります。
+
+「cli-config は運用環境へ向いているが、比較用一時スキーマはローカルに構築したい」のような場合に使用します。
 
 #### --dsn (-d)
 
@@ -281,6 +289,16 @@ DML 差分対象のカラム名を指定します。
 
 指定すると確認メッセージを出さずに SQL を直接実行します。
 
+### DSN のまとめ
+
+DSN の指定がいくつかありますが、整理すると下記のようになります
+
+| オプション   | 説明
+|:-            |:-
+| target       | マイグレーション対象を指定します。省略時は cli-config のコネクションです。 ** このオプションを指定しない限り、変更が施されるのは常に cli-config ** です。使用されるケースはあまりないと思います。
+| source       | マイグレーションの元を指定します。省略時は cli-config + ランダムスキーマ名です。 ** 指定場所は files 引数で初期化されます ** 。 cli-config は本運用環境へ向いていることが多いため、比較用一時スキーマを別の場所に構築したい場合に使用します。
+| dsn          | マイグレーションの元を指定します。上記の source と似ていますが、files 引数で初期化されません。本当の意味で ** 動いているDBから動いているDBへの比較 ** です。本番環境と検証環境を比較したりする場合に使用します。
+
 ### Popular Usage
 
 要約すると、よくある使い方は下記のようになります。
@@ -291,6 +309,8 @@ DML 差分対象のカラム名を指定します。
   - cli-config の接続先を sqlfiles にマイグレーションします。cli-config 先にランダムな一時スキーマが生成されます。
 - vendor/bin/doctrine-dbal dbal:migrate sqlfiles --target remotehost/dbname
   - remotehost/dbname を sqlfiles にマイグレーションします。cli-config 先にランダムな一時スキーマが生成されます。
+- vendor/bin/doctrine-dbal dbal:migrate sqlfiles --source localhost/dbname
+  - cli-config の接続先を sqlfiles にマイグレーションします。localhost/dbname に一時スキーマが生成されます。
 - vendor/bin/doctrine-dbal dbal:migrate --dsn localhost/temporary
   - cli-config の接続先を localhost/temporary にマイグレーションします。localhost/temporary に変更は一切加わりません。
 - vendor/bin/doctrine-dbal dbal:migrate --schema temporary

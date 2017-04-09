@@ -148,6 +148,43 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_source()
+    {
+        // use source dbname
+        $result = $this->runApp(array(
+            '-vvv'      => true,
+            '--source'  => $this->new->getHost() . '/temporary',
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertContains('temporary is created', $result);
+
+        // use source and schema
+        $result = $this->runApp(array(
+            '-vvv'      => true,
+            '--source'  => $this->new->getHost(),
+            '--schema'  => 'temporary_schema',
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertContains('temporary_schema is created', $result);
+
+        // use auto detect
+        $result = $this->runApp(array(
+            '-vvv'      => true,
+            '--source'  => $this->new->getHost(),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertRegExp('#migration_tests_old_.* is created#', $result);
+    }
+
+    /**
+     * @test
+     */
     function run_schema()
     {
         $this->newSchema->dropAndCreateDatabase($this->new->getDatabase());
