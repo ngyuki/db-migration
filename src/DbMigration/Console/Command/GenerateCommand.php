@@ -20,6 +20,7 @@ class GenerateCommand extends AbstractCommand
             new InputOption('noview', null, InputOption::VALUE_NONE, 'No migration View.'),
             new InputOption('include', 'i', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Target tables pattern (enable comma separated value)'),
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables pattern (enable comma separated value)'),
+            new InputOption('migration', 'm', InputOption::VALUE_OPTIONAL, 'Specify migration directory.'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column.'),
             new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
@@ -49,6 +50,9 @@ EOT
         // option
         $includes = (array) $this->input->getOption('include');
         $excludes = (array) $this->input->getOption('exclude');
+        if ($this->input->getOption('migration')) {
+            $excludes[] = '^' . basename($this->input->getOption('migration')) . '$';
+        }
         $wheres = (array) $this->input->getOption('where') ?: array();
         $ignores = (array) $this->input->getOption('ignore') ?: array();
 

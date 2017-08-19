@@ -128,6 +128,22 @@ class GenerateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_data()
+    {
+        $result = $this->runApp(array(
+            '--migration'  => 'gentable',
+            'files'    => array(
+                str_replace('\\', '/', self::$tmpdir . '/table.sql'),
+            )
+        ));
+
+        $this->assertEquals('', $result);
+        $this->assertFileNotContains('gentable', self::$tmpdir . '/table.sql');
+    }
+
+    /**
+     * @test
+     */
     function run_notfile()
     {
         $this->assertExceptionMessage('is directory', $this->runApp, array(
