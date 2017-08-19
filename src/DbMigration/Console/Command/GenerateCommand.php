@@ -40,10 +40,8 @@ EOT
     {
         $this->setInputOutput($input, $output);
 
-        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $this->output->writeln(var_export($this->input->getArguments(), true));
-            $this->output->writeln(var_export($this->input->getOptions(), true));
-        }
+        $this->logger->trace('var_export', $this->input->getArguments(), true);
+        $this->logger->trace('var_export', $this->input->getOptions(), true);
 
         // normalize file
         $files = $this->normalizeFile();
@@ -62,14 +60,10 @@ EOT
         $transporter->enableView(!$this->input->getOption('noview'));
         $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
         $ddl = $transporter->exportDDL(array_shift($files), $includes, $excludes);
-        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-            $this->output->writeln($ddl);
-        }
+        $this->logger->info($ddl);
         foreach ($files as $filename) {
             $dml = $transporter->exportDML($filename, $wheres, $ignores);
-            if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                $this->output->writeln($dml);
-            }
+            $this->logger->info($dml);
         }
     }
 

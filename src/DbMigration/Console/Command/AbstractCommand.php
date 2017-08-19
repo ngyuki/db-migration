@@ -1,6 +1,7 @@
 <?php
 namespace ryunosuke\DbMigration\Console\Command;
 
+use ryunosuke\DbMigration\Console\Logger;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,6 +19,9 @@ abstract class AbstractCommand extends Command
     /** @var OutputInterface */
     protected $output;
 
+    /** @var Logger */
+    protected $logger;
+
     public function getQuestionHelper()
     {
         return $this->questionHelper ?: $this->questionHelper = new QuestionHelper();
@@ -27,6 +31,7 @@ abstract class AbstractCommand extends Command
     {
         $this->input = $input;
         $this->output = $output;
+        $this->logger = new Logger($input, $output);
     }
 
     protected function confirm($message, $default = true)

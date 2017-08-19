@@ -82,10 +82,8 @@ EOT
     {
         $this->setInputOutput($input, $output);
 
-        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $this->output->writeln(var_export($this->input->getArguments(), true));
-            $this->output->writeln(var_export($this->input->getOptions(), true));
-        }
+        $this->logger->trace('var_export', $this->input->getArguments(), true);
+        $this->logger->trace('var_export', $this->input->getOptions(), true);
 
         // normalize file
         $files = $this->normalizeFile();
@@ -122,7 +120,7 @@ EOT
             // post migration
             $this->doCallback(9, $srcConn);
 
-            $this->output->writeln("<comment>" . $e->getMessage() . "</comment>");
+            $this->logger->log("<comment>" . $e->getMessage() . "</comment>");
         }
         catch (\Exception $e) {
             // post migration
@@ -200,9 +198,7 @@ EOT
         $srcParams = $srcConn->getParams();
         unset($srcParams['url']);
         $srcParams = $this->parseDsn($target, $srcParams);
-        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $this->output->writeln(var_export($srcParams, true));
-        }
+        $this->logger->trace('var_export', $srcParams, true);
         return DriverManager::getConnection($srcParams);
     }
 
@@ -253,9 +249,7 @@ EOT
         }
 
         // create destination connection
-        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $this->output->writeln(var_export($dstParams, true));
-        }
+        $this->logger->trace('var_export', $dstParams, true);
         $dstConn = DriverManager::getConnection($dstParams);
 
         // if specify DSN, never touch destination
@@ -269,7 +263,7 @@ EOT
             // drop destination database if exists
             if ($existsDstDb && $rebuild) {
                 $schemer->dropDatabase($dstName);
-                $this->output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
+                $this->logger->log("-- <info>$dstName</info> <comment>is dropped.</comment>");
                 $existsDstDb = false;
             }
 
@@ -277,33 +271,25 @@ EOT
             if (!$existsDstDb) {
                 $schemer->createDatabase($dstName);
                 $this->doCallback(1, $dstConn);
-                $this->output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
+                $this->logger->log("-- <info>$dstName</info> <comment>is created.</comment>");
 
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
                 $transporter->enableView(!$this->input->getOption('noview'));
                 $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
                 $ddlfile = array_shift($files);
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- <info>importDDL</info> $ddlfile");
-                }
+                $this->logger->info("-- <info>importDDL</info> $ddlfile");
                 $sqls = $transporter->importDDL($ddlfile);
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                    foreach ($sqls as $sql) {
-                        $this->writeSql($sql);
-                    }
+                foreach ($sqls as $sql) {
+                    $this->logger->debug(array($this, 'formatSql'), $sql);
                 }
                 $dstConn->beginTransaction();
                 try {
                     foreach ($files as $filename) {
-                        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                            $this->output->writeln("-- <info>importDML</info> $filename");
-                        }
+                        $this->logger->info("-- <info>importDML</info> $ddlfile");
                         $rows = $transporter->importDML($filename);
-                        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                            foreach ($rows as $row) {
-                                $this->output->writeln(var_export($row, true));
-                            }
+                        foreach ($rows as $row) {
+                            $this->logger->debug('var_export', $row, true);
                         }
                     }
                     $dstConn->commit();
@@ -332,7 +318,7 @@ EOT
             // drop current
             $schemer = $dstConn->getSchemaManager();
             $schemer->dropDatabase($dstName);
-            $this->output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
+            $this->logger->log("-- <info>$dstName</info> <comment>is dropped.</comment>");
 
             // drop garbage
             $target = $srcConn->getDatabase();
@@ -340,7 +326,7 @@ EOT
                 if (preg_match("/^{$target}_[0-9a-f]{32}$/", $database)) {
                     if ($this->confirm("drop '$database'(this probably is garbage)?", false)) {
                         $schemer->dropDatabase($database);
-                        $this->output->writeln("-- <info>$database</info> <comment>is dropped.</comment>");
+                        $this->logger->log("-- <info>$database</info> <comment>is dropped.</comment>");
                     }
                 }
             }
@@ -362,19 +348,19 @@ EOT
         $excludes = (array) $this->input->getOption('exclude');
         $noview = $this->input->getOption('noview');
 
-        $this->output->writeln("-- <comment>diff DDL</comment>");
+        $this->logger->log("-- <comment>diff DDL</comment>");
 
         // get ddl
         $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes, $noview);
         if (!$sqls) {
-            $this->output->writeln("-- no diff schema.");
+            $this->logger->log("-- no diff schema.");
             return;
         }
 
         $execed = false;
         foreach ($sqls as $sql) {
             // display sql(formatted)
-            $this->writeSql($sql);
+            $this->logger->log(array($this, 'formatSql'), $sql);
 
             // exec if noconfirm or confirm answer is "y"
             if ($this->confirm('exec this query?', false)) {
@@ -384,7 +370,7 @@ EOT
                         $execed = true;
                     }
                     catch (\Exception $e) {
-                        $this->output->writeln('/* <error>' . $e->getMessage() . '</error> */');
+                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
                         if (!$force && $this->confirm('exit?', false)) {
                             throw $e;
                         }
@@ -420,7 +406,7 @@ EOT
             'update' => !$this->input->getOption('no-update'),
         );
 
-        $this->output->writeln("-- <comment>diff DML</comment>");
+        $this->logger->log("-- <comment>diff DML</comment>");
 
         $dsttables = Migrator::getSchema($dstConn)->getTables();
         $maxlength = $dsttables ? max(array_map(function (Table $table) { return strlen($table->getName()); }, $dsttables)) + 1 : 0;
@@ -431,31 +417,23 @@ EOT
 
             $filtered = Migrator::filterTable($tablename, $includes, $excludes);
             if ($filtered === 1) {
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- $title is skipped by include option.");
-                }
+                $this->logger->info("-- $title is skipped by include option.");
                 continue;
             }
             else if ($filtered === 2) {
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- $title is skipped by exclude option.");
-                }
+                $this->logger->info("-- $title is skipped by exclude option.");
                 continue;
             }
 
             // skip to not exists tables
             if (!Migrator::getSchema($srcConn)->hasTable($tablename)) {
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- $title is skipped by not exists.");
-                }
+                $this->logger->info("-- $title is skipped by not exists.");
                 continue;
             }
 
             // skip no has record
             if (!$dstConn->fetchColumn("select COUNT(*) from $tablename")) {
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- $title is skipped by no record.");
-                }
+                $this->logger->info("-- $title is skipped by no record.");
                 continue;
             }
 
@@ -465,20 +443,16 @@ EOT
                 $sqls = Migrator::getDML($srcConn, $dstConn, $tablename, $wheres, $ignores, $dmltypes);
             }
             catch (MigrationException $ex) {
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- $title is skipped by " . $ex->getMessage());
-                }
+                $this->logger->info("-- $title is skipped by " . $ex->getMessage());
                 continue;
             }
 
             if (!$sqls) {
-                if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $this->output->writeln("-- $title is skipped by no diff.");
-                }
+                $this->logger->info("-- $title is skipped by no diff.");
                 continue;
             }
 
-            $this->output->writeln("-- $title has diff:");
+            $this->logger->log("-- $title has diff:");
 
             // display sql(if noconfirm, max 1000)
             $shown_sqls = $sqls;
@@ -487,7 +461,7 @@ EOT
                 $shown_sqls[] = 'more ' . (count($sqls) - 1000) . ' quries.';
             }
             foreach ($shown_sqls as $sql) {
-                $this->writeSql($sql);
+                $this->logger->log(array($this, 'formatSql'), $sql);
             }
 
             // exec if noconfirm or confirm answer is "y"
@@ -505,7 +479,7 @@ EOT
                     catch (\Exception $e) {
                         $srcConn->rollBack();
 
-                        $this->output->writeln('/* <error>' . $e->getMessage() . '</error> */');
+                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
                         if (!$force && $this->confirm('exit?', false)) {
                             throw $e;
                         }
@@ -514,7 +488,7 @@ EOT
             }
         }
         if (!$dmlflag) {
-            $this->output->writeln("-- no diff table.");
+            $this->logger->log("-- no diff table.");
         }
     }
 
@@ -532,12 +506,8 @@ EOT
         }
     }
 
-    private function writeSql($sql)
+    public function formatSql($sql)
     {
-        if ($this->output->getVerbosity() <= OutputInterface::VERBOSITY_QUIET) {
-            return;
-        }
-
         $sql .= ';';
         switch ($this->input->getOption('format')) {
             case 'pretty':
@@ -559,7 +529,6 @@ EOT
             $sql = mb_strimwidth($sql, 0, $omitlength, PHP_EOL . "...(omitted)");
         }
 
-        $this->output->write($sql);
-        $this->output->writeln('');
+        return $sql;
     }
 }
