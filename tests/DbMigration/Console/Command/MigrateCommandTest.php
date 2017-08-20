@@ -258,6 +258,55 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_type_data()
+    {
+        $result = $this->runApp(array(
+            '--migration' => $this->getFile('migs'),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertContains('insert into notexist VALUES(1)', $result);
+        $this->assertContains('insert into notexist (id) VALUES(7);', $result);
+        $this->assertContains('insert into notexist (id) VALUES(8);', $result);
+        $this->assertContains('insert into notexist (id) VALUES(9);', $result);
+        $this->assertEquals(array(1, 7, 8, 9), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array('aaa.sql', 'bbb.sql'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+
+        $this->old->executeUpdate('insert into migs values("hoge", "2011-12-24 12:34:56")');
+        $result = $this->runApp(array(
+            '--migration' => $this->getFile('migs'),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertNotContains('insert into notexist VALUES(1)', $result);
+        $this->assertNotContains('insert into notexist (id) VALUES(7);', $result);
+        $this->assertNotContains('insert into notexist (id) VALUES(8);', $result);
+        $this->assertNotContains('insert into notexist (id) VALUES(9);', $result);
+        $this->assertContains('[2011-12-24 12:34:56] hoge', $result);
+        $this->assertEquals(array(1, 7, 8, 9), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array('aaa.sql', 'bbb.sql'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+
+        $result = $this->runApp(array(
+            '--migration' => $this->getFile('nodir'),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertContains('-- no diff data', $result);
+
+        $this->assertExceptionMessage("'invalid query'", $this->runApp, array(
+            '--migration' => $this->getFile('migs_invalid'),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+    }
+
+    /**
+     * @test
+     */
     function run_xcludes()
     {
         $result = $this->runApp(array(

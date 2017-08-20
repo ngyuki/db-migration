@@ -84,6 +84,7 @@ Options:
   -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
   -w, --where[=WHERE]                Where condition. (multiple values allowed)
   -g, --ignore[=IGNORE]              Ignore column. (multiple values allowed)
+  -m, --migration[=MIGRATION]        Specify migration table name.
       --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
   -h, --help                         Display this help message
   -q, --quiet                        Do not output any message
@@ -141,6 +142,14 @@ DML 差分対象の WHERE 文を指定します。
 `-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
 
+#### --migration (-m)
+
+マイグレーションテーブル名（ディレクトリ）を指定します。
+指定されると basename が `--exclude` に追加されたような動作になります。
+
+このオプションは下記 `dbal:migrate` との親和性のために存在します。
+実質的には `--exclude` で指定した場合と全く同じです。
+
 ### dbal:migrate
 
 cli-config.php で設定された connection と、指定したファイルで一時スキーマとの比較を取ります。
@@ -162,6 +171,7 @@ Options:
   -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
   -w, --where[=WHERE]                Where condition. (multiple values allowed)
   -g, --ignore[=IGNORE]              Ignore column for DML. (multiple values allowed)
+  -m, --migration[=MIGRATION]        Specify migration table name.
       --no-insert                    Not contains INSERT DML
       --no-delete                    Not contains DELETE DML
       --no-update                    Not contains UPDATE DML
@@ -267,6 +277,28 @@ DML 差分対象のカラム名を指定します。
 `-g table.column` のように指定するとそのテーブルのみで適用されます。
 `-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
+
+#### --migration (-m)
+
+マイグレーションテーブル名（ディレクトリ）を指定します。
+ここで指定されたディレクトリ名の basename でテーブルが作成され、中のファイル（.sql のみ）が実行されます。
+
+- migrations
+  - 20170818.sql: `UPDATE t_table SET surrogate_key = CONCAT(pk1, "-", pk2)`
+  - 20170819-1.sql: `UPDATE t_table SET new_column = UPPER(old_column)`
+  - 20170819-2.sql: `INSERT INTO t_table_children SELECT children_id FROM t_table`
+
+このようなディレクトリ構成のときに `-m migrations` を渡すと `migrations` テーブルが自動で作成され、中の SQL が実行されます。ファイル名はなんでも構いません。
+一度当てたファイルは `migrations` テーブルに記録され、再マイグレーションしても実行されません。
+
+このオプションは下記のような DDL, DML 差分でまかないきれない変更を救うときに有用です。
+
+- 「新しく人口キー（既存レコードのとの組み合わせ）」が増えた
+- 新カラムに既存データに基づくデフォルト値を入れたい
+- 1対1テーブルが1対多に変更された（単一カラム管理から行管理になった）
+
+このような変更は DDL, DML では管理しきれないため、差分適用後に何らかの SQL を実行する必要があります。
+そういった事象を救うためのオプションです。
 
 #### --rebuild (-r)
 

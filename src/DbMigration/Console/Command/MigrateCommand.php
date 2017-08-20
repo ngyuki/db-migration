@@ -6,6 +6,7 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\Table;
 use ryunosuke\DbMigration\Console\CancelException;
 use ryunosuke\DbMigration\MigrationException;
+use ryunosuke\DbMigration\MigrationTable;
 use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\Transporter;
 use Symfony\Component\Console\Input\InputArgument;
@@ -51,6 +52,7 @@ class MigrateCommand extends AbstractCommand
             new InputOption('exclude', 'e', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Except tables pattern (enable comma separated value)'),
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column for DML.'),
+            new InputOption('migration', 'm', InputOption::VALUE_OPTIONAL, 'Specify migration directory.'),
             new InputOption('no-insert', null, InputOption::VALUE_NONE, 'Not contains INSERT DML'),
             new InputOption('no-delete', null, InputOption::VALUE_NONE, 'Not contains DELETE DML'),
             new InputOption('no-update', null, InputOption::VALUE_NONE, 'Not contains UPDATE DML'),
@@ -109,6 +111,9 @@ EOT
 
             // DML
             $this->migrateDML($srcConn, $dstConn);
+
+            // Data
+            $this->migrateData($srcConn);
 
             // clean destination database and connection
             $this->cleanDestination($srcConn, $dstConn);
@@ -346,6 +351,9 @@ EOT
 
         $includes = (array) $this->input->getOption('include');
         $excludes = (array) $this->input->getOption('exclude');
+        if ($this->input->getOption('migration')) {
+            $excludes[] = '^' . basename($this->input->getOption('migration')) . '$';
+        }
         $noview = $this->input->getOption('noview');
 
         $this->logger->log("-- <comment>diff DDL</comment>");
@@ -397,6 +405,9 @@ EOT
 
         $includes = (array) $this->input->getOption('include');
         $excludes = (array) $this->input->getOption('exclude');
+        if ($this->input->getOption('migration')) {
+            $excludes[] = '^' . basename($this->input->getOption('migration')) . '$';
+        }
         $wheres = (array) $this->input->getOption('where') ?: array();
         $ignores = (array) $this->input->getOption('ignore') ?: array();
 
@@ -489,6 +500,70 @@ EOT
         }
         if (!$dmlflag) {
             $this->logger->log("-- no diff table.");
+        }
+    }
+
+    private function migrateData(Connection $srcConn)
+    {
+        $migration = $this->input->getOption('migration');
+        if (!$migration) {
+            return;
+        }
+
+        $migtable = basename($migration);
+        $migrationTable = new MigrationTable($srcConn, $migtable);
+
+        $dryrun = $this->input->getOption('check');
+        $force = $this->input->getOption('force');
+
+        $this->logger->log("-- <comment>diff Data</comment>");
+
+        if ($migrationTable->create()) {
+            $this->logger->log("-- <info>" . $migtable . "</info> <comment>is created.</comment>");
+        }
+
+        $migfiles = glob($this->input->getOption('migration') . '/*.sql');
+        $new = array_combine(array_map('basename', $migfiles), array_map('file_get_contents', $migfiles));
+        $old = $migrationTable->fetch();
+
+        $upgrades = array_diff_key($new, $old);
+        foreach ($upgrades as $version => $sql) {
+            $this->logger->log(array($this, 'formatSql'), $sql);
+
+            if ($this->confirm('exec this query?', true)) {
+                if (!$dryrun) {
+                    $srcConn->beginTransaction();
+
+                    try {
+                        $srcConn->exec($sql);
+                        $migrationTable->attach($version);
+
+                        $srcConn->commit();
+                    }
+                    catch (\Exception $e) {
+                        $srcConn->rollBack();
+
+                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
+                        if (!$force && $this->confirm('exit?', false)) {
+                            throw $e;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!$upgrades) {
+            $this->logger->log("-- no diff data.");
+        }
+
+        $degrades = array_diff_key($old, $new);
+        if (!$dryrun && $degrades) {
+            foreach ($degrades as $applied => $datetime) {
+                $this->logger->log("-- <info>[$datetime] $applied</info>");
+            }
+            if ($this->confirm('probably down migration. delete applying these?', true)) {
+                $migrationTable->detach(array_keys($degrades));
+            }
         }
     }
 
