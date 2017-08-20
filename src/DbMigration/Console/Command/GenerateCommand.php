@@ -2,13 +2,12 @@
 namespace ryunosuke\DbMigration\Console\Command;
 
 use ryunosuke\DbMigration\Transporter;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class GenerateCommand extends Command
+class GenerateCommand extends AbstractCommand
 {
     /**
      * {@inheritdoc}
@@ -39,42 +38,38 @@ EOT
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $output->writeln(var_export($input->getArguments(), true));
-            $output->writeln(var_export($input->getOptions(), true));
-        }
+        $this->setInputOutput($input, $output);
+
+        $this->logger->trace('var_export', $this->input->getArguments(), true);
+        $this->logger->trace('var_export', $this->input->getOptions(), true);
 
         // normalize file
-        $files = $this->normalizeFile($input);
+        $files = $this->normalizeFile();
 
         // option
-        $includes = (array) $input->getOption('include');
-        $excludes = (array) $input->getOption('exclude');
-        $wheres = (array) $input->getOption('where') ?: array();
-        $ignores = (array) $input->getOption('ignore') ?: array();
+        $includes = (array) $this->input->getOption('include');
+        $excludes = (array) $this->input->getOption('exclude');
+        $wheres = (array) $this->input->getOption('where') ?: array();
+        $ignores = (array) $this->input->getOption('ignore') ?: array();
 
         // get target Connection
         $conn = $this->getHelper('db')->getConnection();
 
         // export sql files from argument
         $transporter = new Transporter($conn);
-        $transporter->enableView(!$input->getOption('noview'));
-        $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
+        $transporter->enableView(!$this->input->getOption('noview'));
+        $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
         $ddl = $transporter->exportDDL(array_shift($files), $includes, $excludes);
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-            $output->writeln($ddl);
-        }
+        $this->logger->info($ddl);
         foreach ($files as $filename) {
             $dml = $transporter->exportDML($filename, $wheres, $ignores);
-            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                $output->writeln($dml);
-            }
+            $this->logger->info($dml);
         }
     }
 
-    private function normalizeFile(InputInterface $input)
+    private function normalizeFile()
     {
-        $files = (array) $input->getArgument('files');
+        $files = (array) $this->input->getArgument('files');
 
         $result = array();
 

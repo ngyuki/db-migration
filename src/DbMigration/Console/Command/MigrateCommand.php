@@ -8,26 +8,16 @@ use ryunosuke\DbMigration\Console\CancelException;
 use ryunosuke\DbMigration\MigrationException;
 use ryunosuke\DbMigration\Migrator;
 use ryunosuke\DbMigration\Transporter;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Question\Question;
 
-class MigrateCommand extends Command
+class MigrateCommand extends AbstractCommand
 {
-    private $questionHelper = null;
-
     private $preMigration = null;
 
     private $postMigration = null;
-
-    public function getQuestionHelper()
-    {
-        return $this->questionHelper ?: $this->questionHelper = new QuestionHelper();
-    }
 
     public function setPreMigration($callback)
     {
@@ -90,24 +80,24 @@ EOT
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $output->writeln(var_export($input->getArguments(), true));
-            $output->writeln(var_export($input->getOptions(), true));
-        }
+        $this->setInputOutput($input, $output);
+
+        $this->logger->trace('var_export', $this->input->getArguments(), true);
+        $this->logger->trace('var_export', $this->input->getOptions(), true);
 
         // normalize file
-        $files = $this->normalizeFile($input);
+        $files = $this->normalizeFile();
 
         // get target Connection
-        $srcConn = $this->readySource($input, $output);
+        $srcConn = $this->readySource();
 
         // migrate
         try {
             // create destination database and connection
-            $dstConn = $this->readyDestination($this->getHelper('db')->getConnection(), $files, $input, $output);
+            $dstConn = $this->readyDestination($this->getHelper('db')->getConnection(), $files);
 
             // if init flag, task is completed at this point
-            if ($input->getOption('init')) {
+            if ($this->input->getOption('init')) {
                 return;
             }
 
@@ -115,13 +105,13 @@ EOT
             $this->doCallback(1, $srcConn);
 
             // DDL
-            $this->migrateDDL($srcConn, $dstConn, $input, $output);
+            $this->migrateDDL($srcConn, $dstConn);
 
             // DML
-            $this->migrateDML($srcConn, $dstConn, $input, $output);
+            $this->migrateDML($srcConn, $dstConn);
 
             // clean destination database and connection
-            $this->cleanDestination($srcConn, $dstConn, $input, $output);
+            $this->cleanDestination($srcConn, $dstConn);
 
             // post migration
             $this->doCallback(9, $srcConn);
@@ -130,7 +120,7 @@ EOT
             // post migration
             $this->doCallback(9, $srcConn);
 
-            $output->writeln("<comment>" . $e->getMessage() . "</comment>");
+            $this->logger->log("<comment>" . $e->getMessage() . "</comment>");
         }
         catch (\Exception $e) {
             // post migration
@@ -140,10 +130,10 @@ EOT
         }
     }
 
-    private function normalizeFile(InputInterface $input)
+    private function normalizeFile()
     {
-        $files = (array) $input->getArgument('files');
-        if (count($files) === 0 && !$input->getOption('dsn')) {
+        $files = (array) $this->input->getArgument('files');
+        if (count($files) === 0 && !$this->input->getOption('dsn')) {
             throw new \InvalidArgumentException("require 'file' argument or 'dsn' option.");
         }
 
@@ -194,11 +184,11 @@ EOT
         return $dstParams + $default;
     }
 
-    private function readySource(InputInterface $input, OutputInterface $output)
+    private function readySource()
     {
         /* @var $srcConn \Doctrine\DBAL\Connection */
         $srcConn = $this->getHelper('db')->getConnection();
-        $target = $input->getOption('target');
+        $target = $this->input->getOption('target');
 
         // no target, return cli-config connection
         if (!$target) {
@@ -208,30 +198,26 @@ EOT
         $srcParams = $srcConn->getParams();
         unset($srcParams['url']);
         $srcParams = $this->parseDsn($target, $srcParams);
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $output->writeln(var_export($srcParams, true));
-        }
+        $this->logger->trace('var_export', $srcParams, true);
         return DriverManager::getConnection($srcParams);
     }
 
-    private function readyDestination(Connection $srcConn, $files, InputInterface $input, OutputInterface $output)
+    private function readyDestination(Connection $srcConn, $files)
     {
         $srcParams = $srcConn->getParams();
         unset($srcParams['url']);
 
-        $init = $input->getOption('init');
-        $rebuild = $input->getOption('rebuild') || $init;
-        $source = $input->getOption('source');
-        $url = $input->getOption('dsn');
-        $autoyes = $input->getOption('no-interaction');
-        $confirm = $this->getQuestionHelper();
+        $init = $this->input->getOption('init');
+        $rebuild = $this->input->getOption('rebuild') || $init;
+        $source = $this->input->getOption('source');
+        $url = $this->input->getOption('dsn');
 
         // can't initialize
         if ($init && $url) {
             throw new \InvalidArgumentException("can't initialize database if url specified.");
         }
 
-        if ($init && !$autoyes && 'n' === strtolower($confirm->doAsk($output, new Question("<question>specified init option. really?(y/N):</question>", 'n')))) {
+        if ($init && !$this->confirm('specified init option. really?', false)) {
             throw new CancelException('canceled.');
         }
 
@@ -250,7 +236,7 @@ EOT
                 unset($dstParams['dbname']);
             }
 
-            $schema = $input->getOption('schema');
+            $schema = $this->input->getOption('schema');
             if ($init) {
                 $dstParams['dbname'] = $srcParams['dbname'];
             }
@@ -263,9 +249,7 @@ EOT
         }
 
         // create destination connection
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-            $output->writeln(var_export($dstParams, true));
-        }
+        $this->logger->trace('var_export', $dstParams, true);
         $dstConn = DriverManager::getConnection($dstParams);
 
         // if specify DSN, never touch destination
@@ -279,7 +263,7 @@ EOT
             // drop destination database if exists
             if ($existsDstDb && $rebuild) {
                 $schemer->dropDatabase($dstName);
-                $output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
+                $this->logger->log("-- <info>$dstName</info> <comment>is dropped.</comment>");
                 $existsDstDb = false;
             }
 
@@ -287,33 +271,25 @@ EOT
             if (!$existsDstDb) {
                 $schemer->createDatabase($dstName);
                 $this->doCallback(1, $dstConn);
-                $output->writeln("-- <info>$dstName</info> <comment>is created.</comment>");
+                $this->logger->log("-- <info>$dstName</info> <comment>is created.</comment>");
 
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
-                $transporter->enableView(!$input->getOption('noview'));
-                $transporter->setEncoding('csv', $input->getOption('csv-encoding'));
+                $transporter->enableView(!$this->input->getOption('noview'));
+                $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
                 $ddlfile = array_shift($files);
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- <info>importDDL</info> $ddlfile");
-                }
+                $this->logger->info("-- <info>importDDL</info> $ddlfile");
                 $sqls = $transporter->importDDL($ddlfile);
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                    foreach ($sqls as $sql) {
-                        $this->writeSql($input, $output, $sql);
-                    }
+                foreach ($sqls as $sql) {
+                    $this->logger->debug(array($this, 'formatSql'), $sql);
                 }
                 $dstConn->beginTransaction();
                 try {
                     foreach ($files as $filename) {
-                        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                            $output->writeln("-- <info>importDML</info> $filename");
-                        }
+                        $this->logger->info("-- <info>importDML</info> $ddlfile");
                         $rows = $transporter->importDML($filename);
-                        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                            foreach ($rows as $row) {
-                                $output->writeln(var_export($row, true));
-                            }
+                        foreach ($rows as $row) {
+                            $this->logger->debug('var_export', $row, true);
                         }
                     }
                     $dstConn->commit();
@@ -331,11 +307,9 @@ EOT
         return $dstConn;
     }
 
-    private function cleanDestination(Connection $srcConn, Connection $dstConn, InputInterface $input, OutputInterface $output)
+    private function cleanDestination(Connection $srcConn, Connection $dstConn)
     {
-        $autoyes = $input->getOption('no-interaction');
-        $keepdb = $input->getOption('dsn') || $input->getOption('keep');
-        $confirm = $this->getQuestionHelper();
+        $keepdb = $this->input->getOption('dsn') || $this->input->getOption('keep');
 
         // drop destination database
         if (!$keepdb) {
@@ -344,15 +318,15 @@ EOT
             // drop current
             $schemer = $dstConn->getSchemaManager();
             $schemer->dropDatabase($dstName);
-            $output->writeln("-- <info>$dstName</info> <comment>is dropped.</comment>");
+            $this->logger->log("-- <info>$dstName</info> <comment>is dropped.</comment>");
 
             // drop garbage
             $target = $srcConn->getDatabase();
             foreach ($schemer->listDatabases() as $database) {
                 if (preg_match("/^{$target}_[0-9a-f]{32}$/", $database)) {
-                    if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question("<question>drop '$database'(this probably is garbage)?(y/N):</question>", 'n')))) {
+                    if ($this->confirm("drop '$database'(this probably is garbage)?", false)) {
                         $schemer->dropDatabase($database);
-                        $output->writeln("-- <info>$database</info> <comment>is dropped.</comment>");
+                        $this->logger->log("-- <info>$database</info> <comment>is dropped.</comment>");
                     }
                 }
             }
@@ -361,46 +335,43 @@ EOT
         $this->doCallback(9, $dstConn);
     }
 
-    private function migrateDDL(Connection $srcConn, Connection $dstConn, InputInterface $input, OutputInterface $output)
+    private function migrateDDL(Connection $srcConn, Connection $dstConn)
     {
-        if (!in_array($input->getOption('type'), explode(',', ',ddl'))) {
+        if (!in_array($this->input->getOption('type'), explode(',', ',ddl'))) {
             return;
         }
 
-        $dryrun = $input->getOption('check');
-        $autoyes = $dryrun || $input->getOption('no-interaction');
-        $force = $input->getOption('force');
+        $dryrun = $this->input->getOption('check');
+        $force = $this->input->getOption('force');
 
-        $includes = (array) $input->getOption('include');
-        $excludes = (array) $input->getOption('exclude');
-        $noview = $input->getOption('noview');
+        $includes = (array) $this->input->getOption('include');
+        $excludes = (array) $this->input->getOption('exclude');
+        $noview = $this->input->getOption('noview');
 
-        $confirm = $this->getQuestionHelper();
-
-        $output->writeln("-- <comment>diff DDL</comment>");
+        $this->logger->log("-- <comment>diff DDL</comment>");
 
         // get ddl
         $sqls = Migrator::getDDL($srcConn, $dstConn, $includes, $excludes, $noview);
         if (!$sqls) {
-            $output->writeln("-- no diff schema.");
+            $this->logger->log("-- no diff schema.");
             return;
         }
 
         $execed = false;
         foreach ($sqls as $sql) {
             // display sql(formatted)
-            $this->writeSql($input, $output, $sql);
+            $this->logger->log(array($this, 'formatSql'), $sql);
 
             // exec if noconfirm or confirm answer is "y"
-            if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(y/N):</question>', 'n')))) {
+            if ($this->confirm('exec this query?', false)) {
                 if (!$dryrun) {
                     try {
                         $srcConn->exec($sql);
                         $execed = true;
                     }
                     catch (\Exception $e) {
-                        $output->writeln('/* <error>' . $e->getMessage() . '</error> */');
-                        if (!$force && ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exit?(y/N):</question>', 'n'))))) {
+                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
+                        if (!$force && $this->confirm('exit?', false)) {
                             throw $e;
                         }
                     }
@@ -414,30 +385,28 @@ EOT
         }
     }
 
-    private function migrateDML(Connection $srcConn, Connection $dstConn, InputInterface $input, OutputInterface $output)
+    private function migrateDML(Connection $srcConn, Connection $dstConn)
     {
-        if (!in_array($input->getOption('type'), explode(',', ',dml'))) {
+        if (!in_array($this->input->getOption('type'), explode(',', ',dml'))) {
             return;
         }
 
-        $dryrun = $input->getOption('check');
-        $autoyes = $dryrun || $input->getOption('no-interaction');
-        $force = $input->getOption('force');
+        $dryrun = $this->input->getOption('check');
+        $autoyes = $dryrun || $this->input->getOption('no-interaction');
+        $force = $this->input->getOption('force');
 
-        $includes = (array) $input->getOption('include');
-        $excludes = (array) $input->getOption('exclude');
-        $wheres = (array) $input->getOption('where') ?: array();
-        $ignores = (array) $input->getOption('ignore') ?: array();
+        $includes = (array) $this->input->getOption('include');
+        $excludes = (array) $this->input->getOption('exclude');
+        $wheres = (array) $this->input->getOption('where') ?: array();
+        $ignores = (array) $this->input->getOption('ignore') ?: array();
 
         $dmltypes = array(
-            'insert' => !$input->getOption('no-insert'),
-            'delete' => !$input->getOption('no-delete'),
-            'update' => !$input->getOption('no-update'),
+            'insert' => !$this->input->getOption('no-insert'),
+            'delete' => !$this->input->getOption('no-delete'),
+            'update' => !$this->input->getOption('no-update'),
         );
 
-        $confirm = $this->getQuestionHelper();
-
-        $output->writeln("-- <comment>diff DML</comment>");
+        $this->logger->log("-- <comment>diff DML</comment>");
 
         $dsttables = Migrator::getSchema($dstConn)->getTables();
         $maxlength = $dsttables ? max(array_map(function (Table $table) { return strlen($table->getName()); }, $dsttables)) + 1 : 0;
@@ -448,31 +417,23 @@ EOT
 
             $filtered = Migrator::filterTable($tablename, $includes, $excludes);
             if ($filtered === 1) {
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by include option.");
-                }
+                $this->logger->info("-- $title is skipped by include option.");
                 continue;
             }
             else if ($filtered === 2) {
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by exclude option.");
-                }
+                $this->logger->info("-- $title is skipped by exclude option.");
                 continue;
             }
 
             // skip to not exists tables
             if (!Migrator::getSchema($srcConn)->hasTable($tablename)) {
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by not exists.");
-                }
+                $this->logger->info("-- $title is skipped by not exists.");
                 continue;
             }
 
             // skip no has record
             if (!$dstConn->fetchColumn("select COUNT(*) from $tablename")) {
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by no record.");
-                }
+                $this->logger->info("-- $title is skipped by no record.");
                 continue;
             }
 
@@ -482,20 +443,16 @@ EOT
                 $sqls = Migrator::getDML($srcConn, $dstConn, $tablename, $wheres, $ignores, $dmltypes);
             }
             catch (MigrationException $ex) {
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by " . $ex->getMessage());
-                }
+                $this->logger->info("-- $title is skipped by " . $ex->getMessage());
                 continue;
             }
 
             if (!$sqls) {
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                    $output->writeln("-- $title is skipped by no diff.");
-                }
+                $this->logger->info("-- $title is skipped by no diff.");
                 continue;
             }
 
-            $output->writeln("-- $title has diff:");
+            $this->logger->log("-- $title has diff:");
 
             // display sql(if noconfirm, max 1000)
             $shown_sqls = $sqls;
@@ -504,12 +461,12 @@ EOT
                 $shown_sqls[] = 'more ' . (count($sqls) - 1000) . ' quries.';
             }
             foreach ($shown_sqls as $sql) {
-                $this->writeSql($input, $output, $sql);
+                $this->logger->log(array($this, 'formatSql'), $sql);
             }
 
             // exec if noconfirm or confirm answer is "y"
             $dmlflag = true;
-            if ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exec this query?(Y/n):</question>', 'y')))) {
+            if ($this->confirm('exec this query?', true)) {
                 if (!$dryrun) {
                     $srcConn->beginTransaction();
 
@@ -522,8 +479,8 @@ EOT
                     catch (\Exception $e) {
                         $srcConn->rollBack();
 
-                        $output->writeln('/* <error>' . $e->getMessage() . '</error> */');
-                        if (!$force && ($autoyes || 'n' !== strtolower($confirm->doAsk($output, new Question('<question>exit?(y/N):</question>', 'n'))))) {
+                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
+                        if (!$force && $this->confirm('exit?', false)) {
                             throw $e;
                         }
                     }
@@ -531,7 +488,7 @@ EOT
             }
         }
         if (!$dmlflag) {
-            $output->writeln("-- no diff table.");
+            $this->logger->log("-- no diff table.");
         }
     }
 
@@ -549,14 +506,10 @@ EOT
         }
     }
 
-    private function writeSql(InputInterface $input, OutputInterface $output, $sql)
+    public function formatSql($sql)
     {
-        if ($output->getVerbosity() <= OutputInterface::VERBOSITY_QUIET) {
-            return;
-        }
-
         $sql .= ';';
-        switch ($input->getOption('format')) {
+        switch ($this->input->getOption('format')) {
             case 'pretty':
                 $sql = \SqlFormatter::format($sql, true);
                 break;
@@ -571,12 +524,11 @@ EOT
                 break;
         }
 
-        $omitlength = intval($input->getOption('omit')) ?: 1024;
+        $omitlength = intval($this->input->getOption('omit')) ?: 1024;
         if (mb_strlen($sql) > $omitlength) {
             $sql = mb_strimwidth($sql, 0, $omitlength, PHP_EOL . "...(omitted)");
         }
 
-        $output->write($sql);
-        $output->writeln('');
+        return $sql;
     }
 }
