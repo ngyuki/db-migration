@@ -6,20 +6,17 @@ function techo {
   echo -e "\e[0;42m$*\e[0m"
 }
 
-techo "create target database schema."
-mysql -e "DROP DATABASE IF EXISTS test_demo_migration;CREATE DATABASE test_demo_migration;"
-
 techo "import current database definitation. (imitate running database)"
-vendor/bin/doctrine-dbal dbal:import demo/current/*
+vendor/bin/doctrine-dbal dbal:migrate demo/current/* --init -n
 
 techo "generate current database definitation and records. (as sql)"
-vendor/bin/doctrine-dbal dbal:generate /tmp/schema.sql /tmp/RecordTable.sql -v
+vendor/bin/doctrine-dbal dbal:generate /tmp/schema.sql /tmp/RecordTable.sql -m migration -v
 
 techo "generate current database definitation and records. (as yml)"
-vendor/bin/doctrine-dbal dbal:generate /tmp/schema.yml /tmp/RecordTable.yml -v
+vendor/bin/doctrine-dbal dbal:generate /tmp/schema.yml /tmp/RecordTable.yml -m migration -v
 
 techo "migrate latest database definitation. (exe no-interaction)"
-vendor/bin/doctrine-dbal dbal:migrate demo/latest/* --no-interaction -v -k
+vendor/bin/doctrine-dbal dbal:migrate demo/latest/* --no-interaction -m demo/migration -v -k
 
 techo "confirm no diff"
-vendor/bin/doctrine-dbal dbal:migrate demo/latest/* --check
+vendor/bin/doctrine-dbal dbal:migrate demo/latest/* -m migration --check
