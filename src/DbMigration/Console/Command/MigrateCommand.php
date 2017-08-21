@@ -222,10 +222,6 @@ EOT
             throw new \InvalidArgumentException("can't initialize database if url specified.");
         }
 
-        if ($init && !$this->confirm('specified init option. really?', false)) {
-            throw new CancelException('canceled.');
-        }
-
         if ($url) {
             // detect destination database params
             $dstParams = $this->parseDsn($url, $srcParams);
@@ -250,6 +246,14 @@ EOT
             }
             else if (!isset($dstParams['dbname'])) {
                 $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
+            }
+        }
+
+        // confirm for init option
+        if ($init) {
+            $targetdsn = @sprintf("%s://%s:%s/%s", $dstParams['driver'], $dstParams['host'], $dstParams['port'], $dstParams['dbname']);
+            if (!$this->confirm("specified init option. target:<error>$targetdsn</error> really?", false)) {
+                throw new CancelException('canceled.');
             }
         }
 
@@ -282,16 +286,20 @@ EOT
                 $transporter = new Transporter($dstConn);
                 $transporter->enableView(!$this->input->getOption('noview'));
                 $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
+
+                // importDDL
                 $ddlfile = array_shift($files);
                 $this->logger->info("-- <info>importDDL</info> $ddlfile");
                 $sqls = $transporter->importDDL($ddlfile);
                 foreach ($sqls as $sql) {
                     $this->logger->debug(array($this, 'formatSql'), $sql);
                 }
+
+                // importDML
                 $dstConn->beginTransaction();
                 try {
                     foreach ($files as $filename) {
-                        $this->logger->info("-- <info>importDML</info> $ddlfile");
+                        $this->logger->info("-- <info>importDML</info> $filename");
                         $rows = $transporter->importDML($filename);
                         foreach ($rows as $row) {
                             $this->logger->debug('var_export', $row, true);
@@ -302,6 +310,22 @@ EOT
                 catch (\Exception $ex) {
                     $dstConn->rollBack();
                     throw $ex;
+                }
+
+                // create migration table and attach all
+                $migration = $this->input->getOption('migration');
+                if ($init && $migration) {
+                    $this->logger->info("-- <info>attachMigration</info> $migration");
+                    $migtable = basename($migration);
+
+                    $migrationTable = new MigrationTable($dstConn, $migtable);
+                    $migrationTable->create();
+
+                    $migfiles = $migrationTable->glob($migration);
+                    foreach ($migfiles as $version => $sql) {
+                        $this->logger->debug(array($this, 'formatSql'), $sql);
+                        $migrationTable->attach($version);
+                    }
                 }
             }
             else {
@@ -522,8 +546,7 @@ EOT
             $this->logger->log("-- <info>" . $migtable . "</info> <comment>is created.</comment>");
         }
 
-        $migfiles = glob($this->input->getOption('migration') . '/*.sql');
-        $new = array_combine(array_map('basename', $migfiles), array_map('file_get_contents', $migfiles));
+        $new = $migrationTable->glob($migration);
         $old = $migrationTable->fetch();
 
         $upgrades = array_diff_key($new, $old);

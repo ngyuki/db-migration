@@ -48,6 +48,12 @@ class MigrationTable
         return false;
     }
 
+    public function glob($migdir)
+    {
+        $migfiles = glob($migdir . '/*.sql');
+        return array_combine(array_map('basename', $migfiles), array_map('file_get_contents', $migfiles));
+    }
+
     public function fetch()
     {
         return $this->connection->executeQuery("SELECT * FROM " . $this->table->getName())->fetchAll(\PDO::FETCH_COLUMN | \PDO::FETCH_UNIQUE);

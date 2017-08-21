@@ -694,6 +694,7 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $result = $this->runApp(array(
             '-v'     => true,
+            '-m'     => $this->getFile('migs'),
             '--init' => true,
             'files'  => array(
                 $this->getFile('table.sql'),
@@ -704,8 +705,10 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains("migration_tests_old is created", $result);
         $this->assertContains("importDDL", $result);
         $this->assertContains("importDML", $result);
+        $this->assertContains("attachMigration", $result);
         $this->assertNotContains("diff DDL", $result);
         $this->assertNotContains("diff DML", $result);
+        $this->assertTrue($this->oldSchema->tablesExist('migs'));
 
         $mock_stream = fopen('php://memory', 'w+');
         fwrite($mock_stream, 'n');
