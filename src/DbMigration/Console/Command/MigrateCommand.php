@@ -222,10 +222,6 @@ EOT
             throw new \InvalidArgumentException("can't initialize database if url specified.");
         }
 
-        if ($init && !$this->confirm('specified init option. really?', false)) {
-            throw new CancelException('canceled.');
-        }
-
         if ($url) {
             // detect destination database params
             $dstParams = $this->parseDsn($url, $srcParams);
@@ -250,6 +246,14 @@ EOT
             }
             else if (!isset($dstParams['dbname'])) {
                 $dstParams['dbname'] = $srcParams['dbname'] . '_' . md5(implode('', array_map('filemtime', $files)));
+            }
+        }
+
+        // confirm for init option
+        if ($init) {
+            $targetdsn = @sprintf("%s://%s:%s/%s", $dstParams['driver'], $dstParams['host'], $dstParams['port'], $dstParams['dbname']);
+            if (!$this->confirm("specified init option. target:<error>$targetdsn</error> really?", false)) {
+                throw new CancelException('canceled.');
             }
         }
 
