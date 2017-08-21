@@ -15,6 +15,15 @@ class MigrationTableTest extends AbstractTestCase
         $this->assertFalse($migrationTable->drop());
     }
 
+    public function test_glob()
+    {
+        $migrationTable = new MigrationTable($this->old, 'migtable');
+        $versions = $migrationTable->glob(__DIR__ . '/_files/migs');
+        $this->assertEquals(array (
+            'aaa.sql' => 'insert into hoge values ()',
+        ), $versions);
+    }
+
     public function test_attach_detach()
     {
         $migrationTable = new MigrationTable($this->old, 'migtable');
