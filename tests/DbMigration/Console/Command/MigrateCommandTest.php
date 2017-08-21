@@ -706,8 +706,6 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains("importDDL", $result);
         $this->assertContains("importDML", $result);
         $this->assertContains("attachMigration", $result);
-        $this->assertContains("insert into notexist VALUES(1)", $result);
-        $this->assertContains("insert into notexist (id) VALUES(8)", $result);
         $this->assertNotContains("diff DDL", $result);
         $this->assertNotContains("diff DML", $result);
         $this->assertTrue($this->oldSchema->tablesExist('migs'));
