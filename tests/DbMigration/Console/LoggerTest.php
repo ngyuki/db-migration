@@ -24,23 +24,23 @@ class LoggerTest extends AbstractTestCase
 
         $output->setVerbosity(OutputInterface::VERBOSITY_QUIET);
         $all($logger);
-        $this->assertEquals("", $output->fetch());
+        $this->assertEquals([""], explode(PHP_EOL, $output->fetch()));
 
         $output->setVerbosity(OutputInterface::VERBOSITY_NORMAL);
         $all($logger);
-        $this->assertEquals("_log\n", $output->fetch());
+        $this->assertEquals(["_log", ""], explode(PHP_EOL, $output->fetch()));
 
         $output->setVerbosity(OutputInterface::VERBOSITY_VERBOSE);
         $all($logger);
-        $this->assertEquals("_log\n_info\n", $output->fetch());
+        $this->assertEquals(["_log", "_info", ""], explode(PHP_EOL, $output->fetch()));
 
         $output->setVerbosity(OutputInterface::VERBOSITY_VERY_VERBOSE);
         $all($logger);
-        $this->assertEquals("_log\n_info\n_debug\n", $output->fetch());
+        $this->assertEquals(["_log", "_info", "_debug", ""], explode(PHP_EOL, $output->fetch()));
 
         $output->setVerbosity(OutputInterface::VERBOSITY_DEBUG);
         $all($logger);
-        $this->assertEquals("_log\n_info\n_debug\n_trace\n", $output->fetch());
+        $this->assertEquals(["_log", "_info", "_debug", "_trace", ""], explode(PHP_EOL, $output->fetch()));
     }
 
     public function test_write()
@@ -49,12 +49,12 @@ class LoggerTest extends AbstractTestCase
         $logger = new Logger(new ArrayInput(array()), $output);
 
         $logger->log('string');
-        $this->assertEquals("string\n", $output->fetch());
+        $this->assertEquals("string", trim($output->fetch()));
 
         $logger->log('sprintf%04d%s', 123, 'string');
-        $this->assertEquals("sprintf0123string\n", $output->fetch());
+        $this->assertEquals("sprintf0123string", trim($output->fetch()));
 
         $logger->log('json_encode', array(123, 's' => 'string'));
-        $this->assertEquals('{"0":123,"s":"string"}' . "\n", $output->fetch());
+        $this->assertEquals('{"0":123,"s":"string"}', trim($output->fetch()));
     }
 }
