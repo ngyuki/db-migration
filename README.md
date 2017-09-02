@@ -177,6 +177,7 @@ Options:
       --no-update                    Not contains UPDATE DML
       --format[=FORMAT]              Format output SQL (none, pretty, format, highlight or compress. default pretty) [default: "pretty"]
   -o, --omit=OMIT                    Omit size for long SQL
+      --bulk-insert                  Enable bulk insert
       --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
   -c, --check                        Check only (Dry run. force no-interaction)
   -f, --force                        Force continue, ignore errors
