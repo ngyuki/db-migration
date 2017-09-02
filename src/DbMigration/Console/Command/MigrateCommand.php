@@ -298,20 +298,20 @@ EOT
                 }
 
                 // importDML
-                $dstConn->beginTransaction();
-                try {
-                    foreach ($files as $filename) {
-                        $this->logger->info("-- <info>importDML</info> $filename");
+                foreach ($files as $filename) {
+                    $this->logger->info("-- <info>importDML</info> $filename");
+                    $dstConn->beginTransaction();
+                    try {
                         $rows = $transporter->importDML($filename);
                         foreach ($rows as $row) {
                             $this->logger->debug('var_export', $row, true);
                         }
+                        $dstConn->commit();
                     }
-                    $dstConn->commit();
-                }
-                catch (\Exception $ex) {
-                    $dstConn->rollBack();
-                    throw $ex;
+                    catch (\Exception $ex) {
+                        $dstConn->rollBack();
+                        throw $ex;
+                    }
                 }
 
                 // create migration table and attach all
