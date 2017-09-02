@@ -34,6 +34,11 @@ class Transporter
     /**
      * @var array
      */
+    private $bulkmode = false;
+
+    /**
+     * @var array
+     */
     private $encodings = array();
 
     /**
@@ -75,6 +80,11 @@ class Transporter
     public function enableView($enabled)
     {
         $this->viewEnabled = $enabled;
+    }
+
+    public function setBulkMode($bulkmode)
+    {
+        $this->bulkmode = $bulkmode;
     }
 
     public function setEncoding($ext, $encoding)
@@ -341,14 +351,39 @@ class Transporter
                 break;
         }
 
-        $tablename = basename($filename, ".$ext");
-        $qtable = $this->connection->quoteIdentifier($tablename);
-
-        foreach ($rows as $row) {
-            $this->connection->insert($qtable, $row);
-        }
+        $this->insert(basename($filename, ".$ext"), $rows);
 
         return $rows;
+    }
+
+    private function insert($tablename, $rows)
+    {
+        if (!$rows) {
+            return 0;
+        }
+
+        $qtable = $this->connection->quoteIdentifier($tablename);
+
+        if ($this->bulkmode) {
+            $columns = array_keys(reset($rows));
+            $values = array();
+            foreach ($rows as $row) {
+                $value = array();
+                foreach ($columns as $column) {
+                    $value[] = $this->connection->quote($row[$column]);
+                }
+                $values[] = '(' . implode(',', $value) . ')';
+            }
+            $sql = "INSERT INTO $qtable " . " (" . implode(',', $columns) . ") VALUES " . implode(',', $values);
+            return $this->connection->executeUpdate($sql);
+        }
+        else {
+            $count = 0;
+            foreach ($rows as $row) {
+                $count += $this->connection->insert($qtable, $row);
+            }
+            return $count;
+        }
     }
 
     private function tableToArray(Table $table)

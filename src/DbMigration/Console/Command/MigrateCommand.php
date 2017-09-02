@@ -58,6 +58,7 @@ class MigrateCommand extends AbstractCommand
             new InputOption('no-update', null, InputOption::VALUE_NONE, 'Not contains UPDATE DML'),
             new InputOption('format', null, InputOption::VALUE_OPTIONAL, 'Format output SQL (none, pretty, format, highlight or compress. default pretty)', 'pretty'),
             new InputOption('omit', 'o', InputOption::VALUE_REQUIRED, 'Omit size for long SQL'),
+            new InputOption('bulk-insert', null, InputOption::VALUE_NONE, 'Enable bulk insert'),
             new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
             new InputOption('check', 'c', InputOption::VALUE_NONE, 'Check only (Dry run. force no-interaction)'),
             new InputOption('force', 'f', InputOption::VALUE_NONE, 'Force continue, ignore errors'),
@@ -285,6 +286,7 @@ EOT
                 // import sql files from argument
                 $transporter = new Transporter($dstConn);
                 $transporter->enableView(!$this->input->getOption('noview'));
+                $transporter->setBulkMode($this->input->getOption('bulk-insert'));
                 $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
 
                 // importDDL

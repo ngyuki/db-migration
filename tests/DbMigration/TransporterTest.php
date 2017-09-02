@@ -381,6 +381,52 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function bulkmode()
+    {
+        $insert = $this->refClass->getMethod('insert');
+        $insert->setAccessible(true);
+
+        $affected = $insert->invoke($this->transporter, 'hoge', array());
+        $this->assertEquals(0, $affected);
+
+        $this->old->delete('hoge', array(0));
+        $this->transporter->setBulkMode(false);
+        $affected = $insert->invoke($this->transporter, 'hoge', array(
+            array(
+                'id'   => 1,
+                'name' => 'r1',
+                'data' => 1,
+            ),
+            array(
+                'id'   => 2,
+                'name' => 'r2',
+                'data' => 2,
+            ),
+        ));
+        $this->assertEquals(2, $affected);
+        $this->assertEquals(2, $this->old->fetchColumn('SELECT COUNT(*) FROM hoge'));
+
+        $this->old->delete('hoge', array(0));
+        $this->transporter->setBulkMode(true);
+        $affected = $insert->invoke($this->transporter, 'hoge', array(
+            array(
+                'id'   => 1,
+                'name' => 'r1',
+                'data' => 1,
+            ),
+            array(
+                'data' => 2,
+                'id'   => 2,
+                'name' => 'r2',
+            ),
+        ));
+        $this->assertEquals(2, $affected);
+        $this->assertEquals(2, $this->old->fetchColumn('SELECT COUNT(*) FROM hoge'));
+    }
+
+    /**
+     * @test
+     */
     function encoding()
     {
         $this->transporter->setEncoding('sql', 'SJIS-win');
