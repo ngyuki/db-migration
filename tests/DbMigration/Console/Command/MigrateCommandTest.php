@@ -55,7 +55,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         $this->defaultArgs = array(
             '--format' => 'none',
-            '-n' => true,
+            '-n'       => true,
         );
     }
 
@@ -154,9 +154,9 @@ class MigrateCommandTest extends AbstractTestCase
     {
         // use source dbname
         $result = $this->runApp(array(
-            '-vvv'      => true,
-            '--source'  => $this->new->getHost() . '/temporary',
-            'files'     => array(
+            '-vvv'     => true,
+            '--source' => $this->new->getHost() . '/temporary',
+            'files'    => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -164,10 +164,10 @@ class MigrateCommandTest extends AbstractTestCase
 
         // use source and schema
         $result = $this->runApp(array(
-            '-vvv'      => true,
-            '--source'  => $this->new->getHost(),
-            '--schema'  => 'temporary_schema',
-            'files'     => array(
+            '-vvv'     => true,
+            '--source' => $this->new->getHost(),
+            '--schema' => 'temporary_schema',
+            'files'    => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -175,9 +175,9 @@ class MigrateCommandTest extends AbstractTestCase
 
         // use auto detect
         $result = $this->runApp(array(
-            '-vvv'      => true,
-            '--source'  => $this->new->getHost(),
-            'files'     => array(
+            '-vvv'     => true,
+            '--source' => $this->new->getHost(),
+            'files'    => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -264,7 +264,7 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $result = $this->runApp(array(
             '--migration' => $this->getFile('migs'),
-            'files'     => array(
+            'files'       => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -278,7 +278,7 @@ class MigrateCommandTest extends AbstractTestCase
         $this->old->executeUpdate('insert into migs values("hoge", "2011-12-24 12:34:56")');
         $result = $this->runApp(array(
             '--migration' => $this->getFile('migs'),
-            'files'     => array(
+            'files'       => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -292,7 +292,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         $result = $this->runApp(array(
             '--migration' => $this->getFile('nodir'),
-            'files'     => array(
+            'files'       => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -300,7 +300,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         $this->assertExceptionMessage("'invalid query'", $this->runApp, array(
             '--migration' => $this->getFile('migs_invalid'),
-            'files'     => array(
+            'files'       => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -312,7 +312,7 @@ class MigrateCommandTest extends AbstractTestCase
     function run_type_data_choise()
     {
         $this->runApp(array(
-            'files'     => array(
+            'files' => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -325,7 +325,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         $result = $this->runApp(array(
             '--migration' => $this->getFile('migs'),
-            'files'     => array(
+            'files'       => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -339,7 +339,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         $result = $this->runApp(array(
             '--migration' => $this->getFile('migs'),
-            'files'     => array(
+            'files'       => array(
                 $this->getFile('table.sql'),
             )
         ));
@@ -403,9 +403,9 @@ class MigrateCommandTest extends AbstractTestCase
     function run_noview()
     {
         $result = $this->runApp(array(
-            '-v'        => true,
-            '--noview'  => true,
-            'files'     => array(
+            '-v'       => true,
+            '--noview' => true,
+            'files'    => array(
                 $this->getFile('table.sql')
             )
         ));
@@ -431,7 +431,7 @@ class MigrateCommandTest extends AbstractTestCase
     {
         $this->assertExceptionMessage("'very invalid sql'", $this->runApp, array(
             '--rebuild' => true,
-            'files' => array(
+            'files'     => array(
                 $this->getFile('invalid.sql')
             )
         ));
@@ -797,17 +797,17 @@ class MigrateCommandTest extends AbstractTestCase
         $this->old->getConfiguration()->setSQLLogger($logger);
 
         $this->runApp(array(
-            '--rebuild' => true,
+            '--rebuild'   => true,
             '--migration' => $this->getFile('migs'),
-            '--check' => true,
-            'files'  => array(
+            '--check'     => true,
+            'files'       => array(
                 $this->getFile('table.sql'),
                 $this->getFile('data.sql'),
             )
         ));
 
         // if dryrun, old DB queries are "SELECT" only
-        foreach($logger->queries as $query) {
+        foreach ($logger->queries as $query) {
             $this->assertRegExp('#^SELECT|SHOW#i', ltrim($query['sql']));
         }
     }

@@ -22,7 +22,7 @@ class MigrationTableTest extends AbstractTestCase
     {
         $migrationTable = new MigrationTable($this->old, 'migtable');
         $versions = $migrationTable->glob(__DIR__ . '/_files/migs');
-        $this->assertEquals(array (
+        $this->assertEquals(array(
             'aaa.sql' => 'insert into hoge values ()',
         ), $versions);
     }

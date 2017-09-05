@@ -131,8 +131,8 @@ class GenerateCommandTest extends AbstractTestCase
     function run_data()
     {
         $result = $this->runApp(array(
-            '--migration'  => 'gentable',
-            'files'    => array(
+            '--migration' => 'gentable',
+            'files'       => array(
                 str_replace('\\', '/', self::$tmpdir . '/table.sql'),
             )
         ));
