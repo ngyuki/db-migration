@@ -57,4 +57,13 @@ class LoggerTest extends AbstractTestCase
         $logger->log('json_encode', array(123, 's' => 'string'));
         $this->assertEquals('{"0":123,"s":"string"}', trim($output->fetch()));
     }
+
+    public function test_return()
+    {
+        $output = new BufferedOutput();
+        $logger = new Logger(new ArrayInput(array()), $output);
+
+        $this->assertNull($logger->trace('hogera'));
+        $this->assertEquals('hogera', $logger->log('hogera'));
+    }
 }

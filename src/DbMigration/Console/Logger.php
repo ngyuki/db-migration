@@ -18,10 +18,18 @@ class Logger
         $this->output = $output;
     }
 
+    /**
+     * write log
+     *
+     * @param int $level OutputInterface::VERBOSITY_XXX
+     * @param string|callable $message log message
+     * @param array $args vsprintf args or callable args
+     * @return string|null written message or null
+     */
     private function write($level, $message, $args)
     {
         if ($this->output->getVerbosity() < $level) {
-            return;
+            return null;
         }
 
         if (is_callable($message)) {
@@ -32,13 +40,50 @@ class Logger
         }
 
         $this->output->writeln($message);
+        return $message;
     }
 
-    public function log($message) { $this->write(OutputInterface::VERBOSITY_NORMAL, $message, array_slice(func_get_args(), 1)); }
+    /**
+     * write log VERBOSITY_NORMAL (write when except for "-q")
+     *
+     * @param string|callable $message log message
+     * @return string|null
+     */
+    public function log($message)
+    {
+        return $this->write(OutputInterface::VERBOSITY_NORMAL, $message, array_slice(func_get_args(), 1));
+    }
 
-    public function info($message) { $this->write(OutputInterface::VERBOSITY_VERBOSE, $message, array_slice(func_get_args(), 1)); }
+    /**
+     * write log VERBOSITY_VERBOSE (write when specify "-v")
+     *
+     * @param string|callable $message log message
+     * @return string|null
+     */
+    public function info($message)
+    {
+        return $this->write(OutputInterface::VERBOSITY_VERBOSE, $message, array_slice(func_get_args(), 1));
+    }
 
-    public function debug($message) { $this->write(OutputInterface::VERBOSITY_VERY_VERBOSE, $message, array_slice(func_get_args(), 1)); }
+    /**
+     * write log VERBOSITY_VERY_VERBOSE (write when specify "-vv")
+     *
+     * @param string|callable $message log message
+     * @return string|null
+     */
+    public function debug($message)
+    {
+        return $this->write(OutputInterface::VERBOSITY_VERY_VERBOSE, $message, array_slice(func_get_args(), 1));
+    }
 
-    public function trace($message) { $this->write(OutputInterface::VERBOSITY_DEBUG, $message, array_slice(func_get_args(), 1)); }
+    /**
+     * write log VERBOSITY_DEBUG (write when specify "-vvv")
+     *
+     * @param string|callable $message log message
+     * @return string|null
+     */
+    public function trace($message)
+    {
+        return $this->write(OutputInterface::VERBOSITY_DEBUG, $message, array_slice(func_get_args(), 1));
+    }
 }
