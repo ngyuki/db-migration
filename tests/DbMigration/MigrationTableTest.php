@@ -5,13 +5,16 @@ use ryunosuke\DbMigration\MigrationTable;
 
 class MigrationTableTest extends AbstractTestCase
 {
-    public function test_create_drop()
+    public function test_exists_create_drop()
     {
         $migrationTable = new MigrationTable($this->old, 'migtable');
 
+        $this->assertFalse($migrationTable->exists());
         $this->assertTrue($migrationTable->create());
+        $this->assertTrue($migrationTable->exists());
         $this->assertFalse($migrationTable->create());
         $this->assertTrue($migrationTable->drop());
+        $this->assertFalse($migrationTable->exists());
         $this->assertFalse($migrationTable->drop());
     }
 

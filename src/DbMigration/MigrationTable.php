@@ -30,9 +30,14 @@ class MigrationTable
         ));
     }
 
+    public function exists()
+    {
+        return $this->connection->getSchemaManager()->tablesExist($this->table->getName());
+    }
+
     public function create()
     {
-        if (!$this->connection->getSchemaManager()->tablesExist($this->table->getName())) {
+        if (!$this->exists()) {
             $this->connection->getSchemaManager()->createTable($this->table);
             return true;
         }
@@ -41,7 +46,7 @@ class MigrationTable
 
     public function drop()
     {
-        if ($this->connection->getSchemaManager()->tablesExist($this->table->getName())) {
+        if ($this->exists()) {
             $this->connection->getSchemaManager()->dropTable($this->table);
             return true;
         }
@@ -56,6 +61,9 @@ class MigrationTable
 
     public function fetch()
     {
+        if (!$this->exists()) {
+            return array();
+        }
         return $this->connection->executeQuery("SELECT * FROM " . $this->table->getName())->fetchAll(\PDO::FETCH_COLUMN | \PDO::FETCH_UNIQUE);
     }
 

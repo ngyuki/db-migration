@@ -309,6 +309,48 @@ class MigrateCommandTest extends AbstractTestCase
     /**
      * @test
      */
+    function run_type_data_choise()
+    {
+        $this->runApp(array(
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+
+        unset($this->defaultArgs['-n']);
+
+        /** @var MigrateCommand $command */
+        $command = $this->app->get('dbal:migrate');
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream('y', array('n' => 2), 'y'));
+
+        $result = $this->runApp(array(
+            '--migration' => $this->getFile('migs'),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertContains('migs is created', $result);
+        $this->assertEquals(array(), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array(), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+
+        /** @var MigrateCommand $command */
+        $command = $this->app->get('dbal:migrate');
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream(array('p' => 2), 'y'));
+
+        $result = $this->runApp(array(
+            '--migration' => $this->getFile('migs'),
+            'files'     => array(
+                $this->getFile('table.sql'),
+            )
+        ));
+        $this->assertNotContains('migs is created', $result);
+        $this->assertEquals(array(), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array('aaa.sql', 'bbb.sql'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * @test
+     */
     function run_xcludes()
     {
         $result = $this->runApp(array(
@@ -756,6 +798,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         $this->runApp(array(
             '--rebuild' => true,
+            '--migration' => $this->getFile('migs'),
             '--check' => true,
             'files'  => array(
                 $this->getFile('table.sql'),

@@ -538,8 +538,12 @@ EOT
 
         $this->logger->log("-- <comment>diff Data</comment>");
 
-        if ($migrationTable->create()) {
-            $this->logger->log("-- <info>" . $migtable . "</info> <comment>is created.</comment>");
+        if (!$migrationTable->exists()) {
+            if ($this->confirm('create migration table? (' . $migtable . ')', true)) {
+                if ($migrationTable->create()) {
+                    $this->logger->log("-- <info>" . $migtable . "</info> <comment>is created.</comment>");
+                }
+            }
         }
 
         $new = $migrationTable->glob($migration);
@@ -549,7 +553,19 @@ EOT
         foreach ($upgrades as $version => $sql) {
             $this->logger->log(array($this, 'formatSql'), $sql);
 
-            if ($this->confirm('exec this query?', true)) {
+            if ($this->input->getOption('check')) {
+                continue;
+            }
+
+            $answer = $this->choice('exec this query?', array('y', 'n', 'p'), 0);
+            if ($answer === 2) {
+                $migrationTable->attach($version);
+                continue;
+            }
+            if ($answer === 1) {
+                continue;
+            }
+            if ($answer === 0) {
                 $srcConn->beginTransaction();
 
                 try {
