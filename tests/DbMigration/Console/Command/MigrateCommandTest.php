@@ -1,16 +1,13 @@
 <?php
 namespace ryunosuke\Test\DbMigration\Console\Command;
 
+use Doctrine\DBAL\Logging\DebugStack;
 use Doctrine\DBAL\Schema\View;
 use ryunosuke\DbMigration\Console\Command\MigrateCommand;
 
 class MigrateCommandTest extends AbstractTestCase
 {
     protected $commandName = 'migrate';
-
-    protected $defaultArgs = array(
-        '--format' => 'none',
-    );
 
     protected function setup()
     {
@@ -55,6 +52,11 @@ class MigrateCommandTest extends AbstractTestCase
         ));
 
         $this->app->add($command);
+
+        $this->defaultArgs = array(
+            '--format' => 'none',
+            '-n' => true,
+        );
     }
 
     /**
@@ -386,6 +388,7 @@ class MigrateCommandTest extends AbstractTestCase
     function run_invalidfile()
     {
         $this->assertExceptionMessage("'very invalid sql'", $this->runApp, array(
+            '--rebuild' => true,
             'files' => array(
                 $this->getFile('invalid.sql')
             )
@@ -628,16 +631,22 @@ class MigrateCommandTest extends AbstractTestCase
      */
     function run_no_interaction()
     {
+        unset($this->defaultArgs['-n']);
+
+        /** @var MigrateCommand $command */
+        $command = $this->app->get('dbal:migrate');
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream(array('y' => 100)));
+
         $result = $this->runApp(array(
             '--rebuild' => '1',
-            '-n'        => '1',
             'files'     => array(
                 $this->getFile('table.sql'),
                 $this->getFile('heavy.sql'),
             )
         ));
 
-        $this->assertContains('more 23 quries', $result);
+        $this->assertContains('total query count is 1023', $result);
+        $this->assertContains("INSERT INTO `sametable` SET `id` = '1024';", $result);
     }
 
     /**
@@ -684,7 +693,6 @@ class MigrateCommandTest extends AbstractTestCase
             )
         ));
         $this->assertContains("DELETE FROM `", $result);
-
     }
 
     /**
@@ -692,6 +700,11 @@ class MigrateCommandTest extends AbstractTestCase
      */
     function run_init()
     {
+        unset($this->defaultArgs['-n']);
+
+        /** @var MigrateCommand $command */
+        $command = $this->app->get('dbal:migrate');
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream(array('y' => 100)));
         $result = $this->runApp(array(
             '-v'     => true,
             '-m'     => $this->getFile('migs'),
@@ -710,12 +723,9 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertNotContains("diff DML", $result);
         $this->assertTrue($this->oldSchema->tablesExist('migs'));
 
-        $mock_stream = fopen('php://memory', 'w+');
-        fwrite($mock_stream, 'n');
-        rewind($mock_stream);
         /** @var MigrateCommand $command */
         $command = $this->app->get('dbal:migrate');
-        $command->getQuestionHelper()->setInputStream($mock_stream);
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream(array('y' => 100)));
         $result = $this->runApp(array(
             '-n'     => false,
             '--init' => true,
@@ -734,6 +744,29 @@ class MigrateCommandTest extends AbstractTestCase
                 $this->getFile('data.sql'),
             )
         ));
+    }
+
+    /**
+     * @test
+     */
+    function run_dryrun()
+    {
+        $logger = new DebugStack();
+        $this->old->getConfiguration()->setSQLLogger($logger);
+
+        $this->runApp(array(
+            '--rebuild' => true,
+            '--check' => true,
+            'files'  => array(
+                $this->getFile('table.sql'),
+                $this->getFile('data.sql'),
+            )
+        ));
+
+        // if dryrun, old DB queries are "SELECT" only
+        foreach($logger->queries as $query) {
+            $this->assertRegExp('#^SELECT|SHOW#i', ltrim($query['sql']));
+        }
     }
 
     /**

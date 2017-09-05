@@ -34,16 +34,52 @@ abstract class AbstractCommand extends Command
         $this->logger = new Logger($input, $output);
     }
 
-    protected function confirm($message, $default = true)
+    protected function choice($message, $choices = array(), $default = 0)
     {
-        $autoyes = $this->input->getOption('check') || $this->input->getOption('no-interaction');
-        if ($autoyes) {
-            return true;
+        // filter and check $choices
+        $choices = array_filter((array) $choices, 'strlen');
+        if (!$choices) {
+            throw new \InvalidArgumentException('$choices is empty.');
         }
 
-        $yesno = $default ? 'Y/n' : 'y/N';
-        $question = new Question("<question>{$message}[{$yesno}]:</question>", $default ? 'y' : 'n');
+        // detect default value
+        if (is_int($default)) {
+            if (!isset($choices[$default])) {
+                throw new \InvalidArgumentException("default index '$default' is undefined.");
+            }
+            $default = $choices[$default];
+        }
+        $defkey = array_search($default, $choices);
+        if ($defkey === false) {
+            throw new \InvalidArgumentException("default value '$default' is undefined.");
+        }
 
-        return 'y' === strtolower($this->getQuestionHelper()->doAsk($this->output, $question));
+        // default value to ucfirst
+        $choices[$defkey] = ucfirst($choices[$defkey]);
+
+        // question
+        $selection = implode('/', $choices);
+        $question = new Question("<question>{$message} [{$selection}]:</question>", $default);
+        $answer = $this->getQuestionHelper()->ask($this->input, $this->output, $question);
+
+        // return answer index
+        $return = null;
+        foreach ($choices as $index => $choice) {
+            if (stripos($choice, $answer) === 0) {
+                if (isset($return)) {
+                    throw new \UnexpectedValueException("ambiguous forward match.");
+                }
+                $return = $index;
+            }
+        }
+        if (!isset($return)) {
+            throw new \UnexpectedValueException("'$answer' is invalid answer.");
+        }
+        return $return;
+    }
+
+    protected function confirm($message, $default = true)
+    {
+        return $this->choice($message, array('y', 'n'), $default ? 0 : 1) === 0;
     }
 }

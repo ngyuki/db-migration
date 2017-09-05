@@ -40,6 +40,23 @@ abstract class AbstractTestCase extends \ryunosuke\Test\DbMigration\AbstractTest
         return str_replace('\\', '/', __DIR__ . $filename);
     }
 
+    protected function getEchoStream()
+    {
+        $stream = fopen('php://memory', 'w+');
+        foreach (func_get_args() as $arg) {
+            if (is_array($arg)) {
+                $l = reset($arg);
+                $c = key($arg);
+                fwrite($stream, str_repeat($c . PHP_EOL, $l));
+            }
+            else {
+                fwrite($stream, $arg . PHP_EOL);
+            }
+        }
+        rewind($stream);
+        return $stream;
+    }
+
     /**
      * @closurable
      * @param array $inputArray
@@ -49,9 +66,7 @@ abstract class AbstractTestCase extends \ryunosuke\Test\DbMigration\AbstractTest
     {
         $inputArray = array(
                 'command' => 'dbal:' . $this->commandName
-            ) + $inputArray + $this->defaultArgs + array(
-                '-n' => true
-            );
+            ) + $inputArray + $this->defaultArgs;
 
         $input = new ArrayInput($inputArray);
         $output = new BufferedOutput();

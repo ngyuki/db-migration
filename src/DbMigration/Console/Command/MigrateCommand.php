@@ -372,7 +372,6 @@ EOT
             return;
         }
 
-        $dryrun = $this->input->getOption('check');
         $force = $this->input->getOption('force');
 
         $includes = (array) $this->input->getOption('include');
@@ -397,17 +396,15 @@ EOT
             $this->logger->log(array($this, 'formatSql'), $sql);
 
             // exec if noconfirm or confirm answer is "y"
-            if ($this->confirm('exec this query?', false)) {
-                if (!$dryrun) {
-                    try {
-                        $srcConn->exec($sql);
-                        $execed = true;
-                    }
-                    catch (\Exception $e) {
-                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
-                        if (!$force && $this->confirm('exit?', false)) {
-                            throw $e;
-                        }
+            if ($this->confirm('exec this query?', true)) {
+                try {
+                    $srcConn->exec($sql);
+                    $execed = true;
+                }
+                catch (\Exception $e) {
+                    $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
+                    if (!$force && $this->confirm('exit?', true)) {
+                        throw $e;
                     }
                 }
             }
@@ -425,8 +422,6 @@ EOT
             return;
         }
 
-        $dryrun = $this->input->getOption('check');
-        $autoyes = $dryrun || $this->input->getOption('no-interaction');
         $force = $this->input->getOption('force');
 
         $includes = (array) $this->input->getOption('include');
@@ -491,35 +486,35 @@ EOT
 
             $this->logger->log("-- $title has diff:");
 
-            // display sql(if noconfirm, max 1000)
-            $shown_sqls = $sqls;
-            if ($autoyes && count($sqls) > 1000) {
-                $shown_sqls = array_slice($sqls, 0, 1000);
-                $shown_sqls[] = 'more ' . (count($sqls) - 1000) . ' quries.';
-            }
-            foreach ($shown_sqls as $sql) {
+            // display sql(max 1000)
+            $show_sqls = array_slice($sqls, 0, 1000);
+            $rest_sqls = array_slice($sqls, 1000);
+            foreach ($show_sqls as $sql) {
                 $this->logger->log(array($this, 'formatSql'), $sql);
+            }
+            if ($rest_sqls && $this->confirm('display more? (total query count is ' . count($sqls) . ')', true)) {
+                foreach ($rest_sqls as $sql) {
+                    $this->logger->log(array($this, 'formatSql'), $sql);
+                }
             }
 
             // exec if noconfirm or confirm answer is "y"
             $dmlflag = true;
             if ($this->confirm('exec this query?', true)) {
-                if (!$dryrun) {
-                    $srcConn->beginTransaction();
+                $srcConn->beginTransaction();
 
-                    try {
-                        foreach ($sqls as $sql) {
-                            $srcConn->exec($sql);
-                        }
-                        $srcConn->commit();
+                try {
+                    foreach ($sqls as $sql) {
+                        $srcConn->exec($sql);
                     }
-                    catch (\Exception $e) {
-                        $srcConn->rollBack();
+                    $srcConn->commit();
+                }
+                catch (\Exception $e) {
+                    $srcConn->rollBack();
 
-                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
-                        if (!$force && $this->confirm('exit?', false)) {
-                            throw $e;
-                        }
+                    $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
+                    if (!$force && $this->confirm('exit?', true)) {
+                        throw $e;
                     }
                 }
             }
@@ -539,7 +534,6 @@ EOT
         $migtable = basename($migration);
         $migrationTable = new MigrationTable($srcConn, $migtable);
 
-        $dryrun = $this->input->getOption('check');
         $force = $this->input->getOption('force');
 
         $this->logger->log("-- <comment>diff Data</comment>");
@@ -556,22 +550,20 @@ EOT
             $this->logger->log(array($this, 'formatSql'), $sql);
 
             if ($this->confirm('exec this query?', true)) {
-                if (!$dryrun) {
-                    $srcConn->beginTransaction();
+                $srcConn->beginTransaction();
 
-                    try {
-                        $srcConn->exec($sql);
-                        $migrationTable->attach($version);
+                try {
+                    $srcConn->exec($sql);
+                    $migrationTable->attach($version);
 
-                        $srcConn->commit();
-                    }
-                    catch (\Exception $e) {
-                        $srcConn->rollBack();
+                    $srcConn->commit();
+                }
+                catch (\Exception $e) {
+                    $srcConn->rollBack();
 
-                        $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
-                        if (!$force && $this->confirm('exit?', false)) {
-                            throw $e;
-                        }
+                    $this->logger->log('/* <error>' . $e->getMessage() . '</error> */');
+                    if (!$force && $this->confirm('exit?', true)) {
+                        throw $e;
                     }
                 }
             }
@@ -582,7 +574,7 @@ EOT
         }
 
         $degrades = array_diff_key($old, $new);
-        if (!$dryrun && $degrades) {
+        if ($degrades) {
             foreach ($degrades as $applied => $datetime) {
                 $this->logger->log("-- <info>[$datetime] $applied</info>");
             }
@@ -604,6 +596,15 @@ EOT
                 call_user_func($this->postMigration, $srcConn);
             }
         }
+    }
+
+    protected function confirm($message, $default = true)
+    {
+        if ($this->input->getOption('check')) {
+            return false;
+        }
+
+        return parent::confirm($message, $default);
     }
 
     public function formatSql($sql)
