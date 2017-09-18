@@ -86,6 +86,8 @@ Options:
   -g, --ignore[=IGNORE]              Ignore column. (multiple values allowed)
   -m, --migration[=MIGRATION]        Specify migration table name.
       --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
+      --yml-inline[=YML-INLINE]      Specify YML inline nest level. [default: 4]
+      --yml-indent[=YML-INDENT]      Specify YML indent size. [default: 4]
   -h, --help                         Display this help message
   -q, --quiet                        Do not output any message
   -V, --version                      Display this application version
