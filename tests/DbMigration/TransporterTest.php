@@ -490,6 +490,24 @@ array (
     /**
      * @test
      */
+    function ymlOption()
+    {
+        // 2 inline, 8 indent
+        $this->transporter->setYmlOption('inline', 2);
+        $this->transporter->setYmlOption('indent', 8);
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yml');
+        $this->assertFileContains('        child: { column: { id: { type: integer, default: null, notnull: true, unsigned:', self::$tmpdir . '/table.yml');
+
+        // 4 inline, 8 indent
+        $this->transporter->setYmlOption('inline', 4);
+        $this->transporter->setYmlOption('indent', 1);
+        $this->transporter->exportDDL(self::$tmpdir . '/table.yml');
+        $this->assertFileContains('   PRIMARY: { column: [id, pid], primary: true, unique: true }', self::$tmpdir . '/table.yml');
+    }
+
+    /**
+     * @test
+     */
     function mb_convert_variables()
     {
         $mb_convert_variables = $this->refClass->getMethod('mb_convert_variables');

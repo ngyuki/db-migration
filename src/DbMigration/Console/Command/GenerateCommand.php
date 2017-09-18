@@ -24,6 +24,8 @@ class GenerateCommand extends AbstractCommand
             new InputOption('where', 'w', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Where condition.'),
             new InputOption('ignore', 'g', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Ignore column.'),
             new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
+            new InputOption('yml-inline', null, InputOption::VALUE_OPTIONAL, 'Specify YML inline nest level.', 4),
+            new InputOption('yml-indent', null, InputOption::VALUE_OPTIONAL, 'Specify YML indent size.', 4),
         ));
         $this->setHelp(<<<EOT
 Generate to SQL file baseed on extension.
@@ -63,6 +65,8 @@ EOT
         $transporter = new Transporter($conn);
         $transporter->enableView(!$this->input->getOption('noview'));
         $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
+        $transporter->setYmlOption('inline', $this->input->getOption('yml-inline'));
+        $transporter->setYmlOption('indent', $this->input->getOption('yml-indent'));
         $ddl = $transporter->exportDDL(array_shift($files), $includes, $excludes);
         $this->logger->info($ddl);
         foreach ($files as $filename) {

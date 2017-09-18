@@ -44,6 +44,14 @@ class Transporter
     /**
      * @var array
      */
+    private $ymlOptions = array(
+        'inline' => 4,
+        'indent' => 4,
+    );
+
+    /**
+     * @var array
+     */
     private $defaultColumnAttributes = array(
         'length'           => null,
         'precision'        => 10,
@@ -90,6 +98,11 @@ class Transporter
     public function setEncoding($ext, $encoding)
     {
         $this->encodings[$ext] = $encoding;
+    }
+
+    public function setYmlOption($option, $value)
+    {
+        $this->ymlOptions[$option] = $value;
     }
 
     public function exportDDL($filename, $includes = array(), $excludes = array())
@@ -156,7 +169,7 @@ class Transporter
                     break;
                 case 'yml':
                 case 'yaml':
-                    $content = Yaml::dump($schemaArray, 4, 4);
+                    $content = Yaml::dump($schemaArray, $this->ymlOptions['inline'], $this->ymlOptions['indent']);
                     break;
             }
         }
@@ -213,7 +226,7 @@ class Transporter
             case 'yaml':
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
-                    $result[] = Yaml::dump(array($scanner->fillDefaultValue($row)), 99, 4);
+                    $result[] = Yaml::dump(array($scanner->fillDefaultValue($row)), 99, $this->ymlOptions['indent']);
                 }
                 $result = implode("", $result);
                 break;
