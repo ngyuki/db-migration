@@ -24,7 +24,35 @@ class MigrationTableTest extends AbstractTestCase
         $versions = $migrationTable->glob(__DIR__ . '/_files/migs');
         $this->assertEquals(array(
             'aaa.sql' => 'insert into hoge values ()',
+            'bbb.php' => "<?php\nreturn 'insert into hoge values ()';\n",
         ), $versions);
+    }
+
+    public function test_apply()
+    {
+        $this->oldSchema->createTable($this->createSimpleTable('ttt', 'string', 'name'));
+
+        $migrationTable = new MigrationTable($this->old, 'migtable');
+        $migrationTable->drop();
+        $migrationTable->create();
+
+        $migrationTable->apply('1.sql', 'insert into ttt values("from sql")');
+        $migrationTable->apply('2.php', '<?php return "insert into ttt values(\"from php(return)\")";');
+        $migrationTable->apply('3.php', '<?php $connection->insert("ttt", array("name" => "from php(code)"));');
+
+        // attached
+        $this->assertEquals(array('1.sql', '2.php', '3.php'), array_keys($migrationTable->fetch()));
+
+        // migrated
+        $this->assertEquals(array(
+            ['name' => 'from php(code)'],
+            ['name' => 'from php(return)'],
+            ['name' => 'from sql']
+        ), $this->old->fetchAll('select * from ttt'));
+
+        // throws
+        $this->setExpectedException('\InvalidArgumentException');
+        $migrationTable->apply('bad.SQL', 'insert into ttt values("bad")');
     }
 
     public function test_attach_detach()
