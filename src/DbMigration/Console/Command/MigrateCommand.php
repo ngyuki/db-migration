@@ -325,7 +325,7 @@ EOT
 
                     $migfiles = $migrationTable->glob($migration);
                     foreach ($migfiles as $version => $sql) {
-                        $this->logger->debug(array($this, 'formatSql'), $sql);
+                        $this->logger->debug($sql);
                         $migrationTable->attach($version);
                     }
                 }
@@ -551,7 +551,7 @@ EOT
 
         $upgrades = array_diff_key($new, $old);
         foreach ($upgrades as $version => $sql) {
-            $this->logger->log(array($this, 'formatSql'), $sql);
+            $this->logger->log($sql);
 
             if ($this->input->getOption('check')) {
                 continue;
@@ -569,8 +569,7 @@ EOT
                 $srcConn->beginTransaction();
 
                 try {
-                    $srcConn->exec($sql);
-                    $migrationTable->attach($version);
+                    $migrationTable->apply($version, $sql);
 
                     $srcConn->commit();
                 }

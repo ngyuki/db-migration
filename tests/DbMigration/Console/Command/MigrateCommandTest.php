@@ -272,8 +272,8 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertContains('insert into notexist (id) VALUES(7);', $result);
         $this->assertContains('insert into notexist (id) VALUES(8);', $result);
         $this->assertContains('insert into notexist (id) VALUES(9);', $result);
-        $this->assertEquals(array(1, 7, 8, 9), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
-        $this->assertEquals(array('aaa.sql', 'bbb.sql'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array(1, 7, 8, 9, 21, 22), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array('aaa.sql', 'bbb.sql', 'ccc.php'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
 
         $this->old->executeUpdate('insert into migs values("hoge", "2011-12-24 12:34:56")');
         $result = $this->runApp(array(
@@ -287,8 +287,8 @@ class MigrateCommandTest extends AbstractTestCase
         $this->assertNotContains('insert into notexist (id) VALUES(8);', $result);
         $this->assertNotContains('insert into notexist (id) VALUES(9);', $result);
         $this->assertContains('[2011-12-24 12:34:56] hoge', $result);
-        $this->assertEquals(array(1, 7, 8, 9), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
-        $this->assertEquals(array('aaa.sql', 'bbb.sql'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array(1, 7, 8, 9, 21, 22), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array('aaa.sql', 'bbb.sql', 'ccc.php'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
 
         $result = $this->runApp(array(
             '--migration' => $this->getFile('nodir'),
@@ -321,7 +321,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         /** @var MigrateCommand $command */
         $command = $this->app->get('dbal:migrate');
-        $command->getQuestionHelper()->setInputStream($this->getEchoStream('y', array('n' => 2), 'y'));
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream('y', array('n' => 3), 'y'));
 
         $result = $this->runApp(array(
             '--migration' => $this->getFile('migs'),
@@ -335,7 +335,7 @@ class MigrateCommandTest extends AbstractTestCase
 
         /** @var MigrateCommand $command */
         $command = $this->app->get('dbal:migrate');
-        $command->getQuestionHelper()->setInputStream($this->getEchoStream(array('p' => 2), 'y'));
+        $command->getQuestionHelper()->setInputStream($this->getEchoStream(array('p' => 3), 'y'));
 
         $result = $this->runApp(array(
             '--migration' => $this->getFile('migs'),
@@ -345,7 +345,7 @@ class MigrateCommandTest extends AbstractTestCase
         ));
         $this->assertNotContains('migs is created', $result);
         $this->assertEquals(array(), $this->old->executeQuery('select * from notexist')->fetchAll(\PDO::FETCH_COLUMN));
-        $this->assertEquals(array('aaa.sql', 'bbb.sql'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
+        $this->assertEquals(array('aaa.sql', 'bbb.sql', 'ccc.php'), $this->old->executeQuery('select * from migs')->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     /**
