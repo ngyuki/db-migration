@@ -7,7 +7,7 @@ function techo {
 }
 
 techo "import current database definitation. (imitate running database)"
-vendor/bin/doctrine-dbal dbal:migrate demo/current/* --init -n
+vendor/bin/doctrine-dbal dbal:migrate demo/current/* --init
 
 techo "generate current database definitation and records. (as sql)"
 vendor/bin/doctrine-dbal dbal:generate /tmp/schema.sql /tmp/RecordTable.sql -m migration -v

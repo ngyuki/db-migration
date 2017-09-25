@@ -284,14 +284,20 @@ DML 差分対象のカラム名を指定します。
 #### --migration (-m)
 
 マイグレーションテーブル名（ディレクトリ）を指定します。
-ここで指定されたディレクトリ名の basename でテーブルが作成され、中のファイル（.sql のみ）が実行されます。
+ここで指定されたディレクトリ名の basename でテーブルが作成され、中のファイル（.sql, .php）が実行されます。
 
 - migrations
   - 20170818.sql: `UPDATE t_table SET surrogate_key = CONCAT(pk1, "-", pk2)`
   - 20170819-1.sql: `UPDATE t_table SET new_column = UPPER(old_column)`
   - 20170819-2.sql: `INSERT INTO t_table_children SELECT children_id FROM t_table`
+  - 20170821-1.php: `<?php $connection->delete('t_table1', ['delete_flg'=>1]); return 'DELETE t_table2 WHERE delete_flg = 1';`
 
-このようなディレクトリ構成のときに `-m migrations` を渡すと `migrations` テーブルが自動で作成され、中の SQL が実行されます。ファイル名はなんでも構いません。
+このようなディレクトリ構成のときに `-m migrations` を渡すと `migrations` テーブルが自動で作成され、中のファイルが実行されます。ファイル名はなんでも構いません。
+.sql はそのまま流されますが、 .php は eval されます。
+その際、返り値がある場合は SQL 文として解釈し実行します。配列の場合は SQL 文の配列とみなします（実際には配列を返すことのほうが多いでしょう）。
+また、 `$connection` というローカル変数が使用できます。これは `Doctrine\DBAL\Connection` のインスタンスで、マイグレーション対象コネクションです。
+このインスタンスを使用してクエリを実行することも可能です。
+
 一度当てたファイルは `migrations` テーブルに記録され、再マイグレーションしても実行されません。
 
 このオプションは下記のような DDL, DML 差分でまかないきれない変更を救うときに有用です。

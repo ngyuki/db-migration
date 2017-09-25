@@ -55,7 +55,7 @@ class MigrationTable
 
     public function glob($migdir)
     {
-        $migfiles = glob($migdir . '/*.sql');
+        $migfiles = glob($migdir . '/*.{sql,php}', GLOB_BRACE);
         return array_combine(array_map('basename', $migfiles), array_map('file_get_contents', $migfiles));
     }
 
@@ -65,6 +65,29 @@ class MigrationTable
             return array();
         }
         return $this->connection->executeQuery("SELECT * FROM " . $this->table->getName())->fetchAll(\PDO::FETCH_COLUMN | \PDO::FETCH_UNIQUE);
+    }
+
+    public function apply($version, $content)
+    {
+        $ext = pathinfo($version, PATHINFO_EXTENSION);
+        switch ($ext) {
+            default:
+                throw new \InvalidArgumentException("'$ext' is not supported.");
+
+            case 'sql':
+                $this->connection->exec($content);
+                break;
+            case 'php':
+                /** @noinspection PhpUnusedLocalVariableInspection */
+                $connection = $this->connection;
+                foreach ((array) eval("?>$content;") as $sql) {
+                    if ($sql) {
+                        $this->connection->exec($sql);
+                    }
+                }
+                break;
+        }
+        $this->attach($version);
     }
 
     public function attach($version)
