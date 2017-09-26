@@ -78,9 +78,12 @@ class MigrationTable
                 $this->connection->exec($content);
                 break;
             case 'php':
-                /** @noinspection PhpUnusedLocalVariableInspection */
                 $connection = $this->connection;
-                foreach ((array) eval("?>$content;") as $sql) {
+                $return = eval("?>$content;");
+                if ($return instanceof \Closure) {
+                    $return = call_user_func($return, $connection);
+                }
+                foreach ((array) $return as $sql) {
                     if ($sql) {
                         $this->connection->exec($sql);
                     }

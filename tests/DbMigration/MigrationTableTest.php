@@ -39,15 +39,18 @@ class MigrationTableTest extends AbstractTestCase
         $migrationTable->apply('1.sql', 'insert into ttt values("from sql")');
         $migrationTable->apply('2.php', '<?php return "insert into ttt values(\"from php(return)\")";');
         $migrationTable->apply('3.php', '<?php $connection->insert("ttt", array("name" => "from php(code)"));');
+        $migrationTable->apply('4.php', '<?php return function($connection){$connection->insert("ttt", array("name" => "from php(mixed code)"));return "insert into ttt values(\"from php(mixed closure)\")";};');
 
         // attached
-        $this->assertEquals(array('1.sql', '2.php', '3.php'), array_keys($migrationTable->fetch()));
+        $this->assertEquals(array('1.sql', '2.php', '3.php', '4.php'), array_keys($migrationTable->fetch()));
 
         // migrated
         $this->assertEquals(array(
             ['name' => 'from php(code)'],
+            ['name' => 'from php(mixed closure)'],
+            ['name' => 'from php(mixed code)'],
             ['name' => 'from php(return)'],
-            ['name' => 'from sql']
+            ['name' => 'from sql'],
         ), $this->old->fetchAll('select * from ttt'));
 
         // throws

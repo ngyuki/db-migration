@@ -297,6 +297,36 @@ DML 差分対象のカラム名を指定します。
 その際、返り値がある場合は SQL 文として解釈し実行します。配列の場合は SQL 文の配列とみなします（実際には配列を返すことのほうが多いでしょう）。
 また、 `$connection` というローカル変数が使用できます。これは `Doctrine\DBAL\Connection` のインスタンスで、マイグレーション対象コネクションです。
 このインスタンスを使用してクエリを実行することも可能です。
+さらに `Closure` を返した場合はそのクロージャが実行されます。引数は `Doctrine\DBAL\Connection` です。
+
+まとめると .php の動作は下記です。
+
+```php
+<?php
+// 返り値を利用するパターン（単一文字列でも配列でも良い）
+return ['INSERT INTO t_table VALUES("hoge")', 'INSERT INTO t_table VALUES("fuga")'];
+```
+
+```php
+<?php
+// ローカル変数の $connection を直接利用するパターン
+$connection->insert('t_table', [/* data array */]);
+```
+
+```php
+<?php
+// クロージャを返すパターン
+return function ($connection) {
+    // 引数の $connection を利用できる
+    $connection->insert('t_table', [/* data array */]);
+    // クロージャが返した文字列配列も実行される
+    return ['INSERT INTO t_table VALUES("hoge")', 'INSERT INTO t_table VALUES("fuga")'];
+};
+```
+
+上記の通り、クロージャ利用パターンの優位性はありません。クロージャパターンでできることはベタコードと return で実現可能です。
+これは将来的に持ち回しがしやすくなることを想定して実装されています。
+（例えばクロージャ単位でトランザクションをかける、DIを利用して引数を可変にする、などです）
 
 一度当てたファイルは `migrations` テーブルに記録され、再マイグレーションしても実行されません。
 
