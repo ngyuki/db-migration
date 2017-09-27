@@ -83,7 +83,7 @@ class TableScanner
         $this->quotedName = $conn->quoteIdentifier($this->table->getName());
         $this->primaryKeys = $this->table->getPrimaryKeyColumns();
         $this->flippedPrimaryKeys = array_flip($this->primaryKeys);
-        $this->primaryKeyString = implode(', ', $this->quoteArray(true, $this->primaryKeys));
+        $this->primaryKeyString = implode(', ', Utility::quoteIdentifier($this->conn, $this->primaryKeys));
 
         // column to array(ColumnNanme => Column)
         $this->columns = $table->getColumns();
@@ -195,7 +195,7 @@ class TableScanner
     {
         $isMysql = $this->conn->getDatabasePlatform() instanceof MySqlPlatform;
         $sqls = array();
-        $columnString = implode(', ', $this->quoteArray(true, array_keys($this->columns)));
+        $columnString = implode(', ', Utility::quoteIdentifier($this->conn, array_keys($this->columns)));
         for ($page = 0; true; $page++) {
             $newrows = $that->getRecordFromPrimaryKeys($tuples, false, $page);
 
@@ -211,7 +211,7 @@ class TableScanner
                 }
                 else {
                     // to VALUES string
-                    $valueString = implode(', ', $this->quoteArray(false, $newrow));
+                    $valueString = implode(', ', Utility::quote($this->conn, $newrow));
 
                     // to SQL
                     $sqls[] = "INSERT INTO $this->quotedName ($columnString) VALUES ($valueString)";
@@ -305,7 +305,7 @@ class TableScanner
     public function getAllRows()
     {
         // fetch records values
-        $columnString = implode(', ', $this->quoteArray(true, array_keys(array_diff_key($this->columns, $this->ignoreColumns))));
+        $columnString = implode(', ', Utility::quoteIdentifier($this->conn, array_keys(array_diff_key($this->columns, $this->ignoreColumns))));
         $sql = "
             SELECT   {$columnString}
             FROM     {$this->quotedName}
@@ -352,7 +352,7 @@ class TableScanner
 
         // prepare sql of primary key record
         $columns = $ignore ? array_diff_key($this->columns, $this->ignoreColumns) : $this->columns;
-        $columnString = implode(', ', $this->quoteArray(true, array_keys($columns)));
+        $columnString = implode(', ', Utility::quoteIdentifier($this->conn, array_keys($columns)));
         $tuplesString = $this->buildWhere($stuples);
         $sql = "
             SELECT   {$columnString}
@@ -400,24 +400,6 @@ class TableScanner
     }
 
     /**
-     * quote array elements
-     *
-     * @param bool $is_identifier
-     * @param array $array
-     * @return array
-     */
-    private function quoteArray($is_identifier, array $array)
-    {
-        // for under php 5.4
-        $conn = $this->conn;
-
-        // quote
-        return array_map(function ($val) use ($is_identifier, $conn) {
-            return $is_identifier ? $conn->quoteIdentifier($val) : ($val === null ? 'NULL' : $conn->quote($val));
-        }, $array);
-    }
-
-    /**
      * array to comment string
      *
      * @param array $data
@@ -448,8 +430,8 @@ class TableScanner
      */
     private function joinKeyValue(array $array, $separator = ' = ')
     {
-        $keys = $this->quoteArray(true, array_keys($array));
-        $vals = $this->quoteArray(false, array_values($array));
+        $keys = Utility::quoteIdentifier($this->conn, array_keys($array));
+        $vals = Utility::quote($this->conn, array_values($array));
 
         $maxlen = max(array_map('strlen', $keys));
 

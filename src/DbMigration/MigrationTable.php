@@ -96,7 +96,7 @@ class MigrationTable
     public function attach($version)
     {
         $versions = array_map(function ($version) {
-            return '(' . $this->connection->quote($version) . ',NOW())';
+            return '(' . Utility::quote($this->connection, $version) . ',NOW())';
         }, (array) $version);
         return $this->connection->executeUpdate("INSERT INTO " . $this->table->getName() . " VALUES " . implode(',', $versions));
     }
@@ -104,7 +104,7 @@ class MigrationTable
     public function detach($version)
     {
         $versions = array_map(function ($version) {
-            return $this->connection->quote($version);
+            return Utility::quote($this->connection, $version);
         }, (array) $version);
         return $this->connection->executeUpdate("DELETE FROM " . $this->table->getName() . " WHERE version IN (" . implode(',', $versions) . ")");
     }
