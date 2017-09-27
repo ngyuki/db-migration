@@ -194,12 +194,12 @@ class Transporter
             default:
                 throw new \DomainException("'$ext' is not supported.");
             case 'sql':
-                $qtable = $this->connection->quoteIdentifier($tablename);
+                $qtable = Utility::quoteIdentifier($this->connection, $tablename);
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
                     $row = $scanner->fillDefaultValue($row);
-                    $columns = implode(', ', array_map(array($this->connection, 'quoteIdentifier'), array_keys($row)));
-                    $values = implode(', ', array_map(array($this->connection, 'quote'), $row));
+                    $columns = implode(', ', Utility::quoteIdentifier($this->connection, array_keys($row)));
+                    $values = implode(', ', Utility::quote($this->connection, $row));
                     $result[] = "INSERT INTO $qtable ($columns) VALUES ($values);";
                 }
                 $result = implode("\n", $result) . "\n";
@@ -375,7 +375,7 @@ class Transporter
             return 0;
         }
 
-        $qtable = $this->connection->quoteIdentifier($tablename);
+        $qtable = Utility::quoteIdentifier($this->connection, $tablename);
 
         if ($this->bulkmode) {
             $columns = array_keys(reset($rows));
@@ -383,7 +383,7 @@ class Transporter
             foreach ($rows as $row) {
                 $value = array();
                 foreach ($columns as $column) {
-                    $value[] = $this->connection->quote($row[$column]);
+                    $value[] = Utility::quote($this->connection, $row[$column]);
                 }
                 $values[] = '(' . implode(',', $value) . ')';
             }
@@ -520,7 +520,7 @@ class Transporter
     {
         /// this is used by display only, so very loose.
 
-        $qv = $this->connection->quote('v');
+        $qv = Utility::quote($this->connection, 'v');
         $quoted_chars = array(
             '"',
             "'",
