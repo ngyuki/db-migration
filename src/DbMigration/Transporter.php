@@ -44,6 +44,14 @@ class Transporter
     /**
      * @var array
      */
+    private $directories = array(
+        'table' => null,
+        'view'  => null,
+    );
+
+    /**
+     * @var array
+     */
     private $ymlOptions = array(
         'inline' => 4,
         'indent' => 4,
@@ -100,6 +108,11 @@ class Transporter
         $this->encodings[$ext] = $encoding;
     }
 
+    public function setDirectory($objectname, $directory)
+    {
+        $this->directories[$objectname] = $directory;
+    }
+
     public function setYmlOption($option, $value)
     {
         $this->ymlOptions[$option] = $value;
@@ -142,7 +155,13 @@ class Transporter
                 if (Migrator::filterTable($table->getName(), $includes, $excludes) > 0) {
                     continue;
                 }
-                $tarray = $this->tableToArray($table);
+                if ($this->directories['table']) {
+                    $fname = $this->directories['table'] . '/' . $table->getName() . '.' . $ext;
+                    $tarray = new Exportion(dirname($filename), $fname, $this->tableToArray($table));
+                }
+                else {
+                    $tarray = $this->tableToArray($table);
+                }
                 $schemaArray['table'][$table->getName()] = $tarray;
             }
             if ($this->viewEnabled) {
@@ -150,9 +169,13 @@ class Transporter
                     if (Migrator::filterTable($view->getName(), $includes, $excludes) > 0) {
                         continue;
                     }
-                    $varray = array(
-                        'sql' => $view->getSql(),
-                    );
+                    if ($this->directories['view']) {
+                        $fname = $this->directories['view'] . '/' . $view->getName() . '.' . $ext;
+                        $varray = new Exportion(dirname($filename), $fname, array('sql' => $view->getSql()));
+                    }
+                    else {
+                        $varray = array('sql' => $view->getSql());
+                    }
                     $schemaArray['view'][$view->getName()] = $varray;
                 }
             }
@@ -162,19 +185,58 @@ class Transporter
                 default:
                     throw new \DomainException("'$ext' is not supported.");
                 case 'php':
-                    $content = "<?php return\n" . var_export($schemaArray, true) . ";\n";
+                    if ($this->directories['table']) {
+                        $schemaArray['table'] = array_map(function (Exportion $exportion) {
+                            return $exportion->setProvider(function ($data) { return "<?php return\n" . Utility::var_export($data, true) . ";\n"; });
+                        }, $schemaArray['table']);
+                    }
+                    if ($this->directories['view']) {
+                        $schemaArray['view'] = array_map(function (Exportion $exportion) {
+                            return $exportion->setProvider(function ($data) { return "<?php return\n" . Utility::var_export($data, true) . ";\n"; });
+                        }, $schemaArray['view']);
+                    }
+                    $content = "<?php return\n" . Utility::var_export($schemaArray, true) . ";\n";
                     break;
                 case 'json':
-                    $content = self::json_encode($schemaArray) . "\n";
+                    if ($this->directories['table']) {
+                        $schemaArray['table'] = array_map(function (Exportion $exportion) {
+                            return $exportion->setProvider(function ($data) { return Utility::json_encode($data); });
+                        }, $schemaArray['table']);
+                    }
+                    if ($this->directories['view']) {
+                        $schemaArray['view'] = array_map(function (Exportion $exportion) {
+                            return $exportion->setProvider(function ($data) { return Utility::json_encode($data); });
+                        }, $schemaArray['view']);
+                    }
+                    $content = Utility::json_encode($schemaArray) . "\n";
                     break;
                 case 'yml':
                 case 'yaml':
-                    $content = Yaml::dump($schemaArray, $this->ymlOptions['inline'], $this->ymlOptions['indent']);
+                    $options = $this->ymlOptions;
+                    if ($this->directories['table']) {
+                        $schemaArray['table'] = array_map(function (Exportion $exportion) {
+                            return $exportion->setProvider(function ($data) { return Utility::yaml_emit($data, array('builtin' => true)); });
+                        }, $schemaArray['table']);
+                    }
+                    if ($this->directories['view']) {
+                        $schemaArray['view'] = array_map(function (Exportion $exportion) {
+                            return $exportion->setProvider(function ($data) { return Utility::yaml_emit($data, array('builtin' => true)); });
+                        }, $schemaArray['view']);
+                    }
+                    if ($this->directories['table'] || $this->directories['view']) {
+                        $options['callback']['ryunosuke\\DbMigration\\Exportion'] = function (Exportion $exportion) {
+                            return array(
+                                'tag'  => '!include',
+                                'data' => $exportion->export(),
+                            );
+                        };
+                    }
+                    $content = Utility::yaml_emit($schemaArray, $options);
                     break;
             }
         }
 
-        self::file_put_contents($filename, $content);
+        Utility::file_put_contents($filename, $content);
         return $content;
     }
 
@@ -211,22 +273,24 @@ class Transporter
                 }
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
-                    $result[] = var_export($scanner->fillDefaultValue($row), true);
+                    $result[] = Utility::var_export($scanner->fillDefaultValue($row), true);
                 }
                 $result = "<?php return array(\n" . implode(",\n", $result) . "\n);\n";
                 break;
             case 'json':
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
-                    $result[] = self::json_encode($scanner->fillDefaultValue($row));
+                    $result[] = Utility::json_encode($scanner->fillDefaultValue($row));
                 }
                 $result = "[\n" . implode(",\n", $result) . "\n]\n";
                 break;
             case 'yml':
             case 'yaml':
+                $option = $this->ymlOptions;
+                $option['inline'] = 999;
                 $result = array();
                 foreach ($scanner->getAllRows() as $row) {
-                    $result[] = Yaml::dump(array($scanner->fillDefaultValue($row)), 99, $this->ymlOptions['indent']);
+                    $result[] = Utility::yaml_emit(array($scanner->fillDefaultValue($row)), $option);
                 }
                 $result = implode("", $result);
                 break;
@@ -254,7 +318,7 @@ class Transporter
             $result = mb_convert_encoding($result, $this->encodings[$ext]);
         }
 
-        self::file_put_contents($filename, $result);
+        Utility::file_put_contents($filename, $result);
         return $result;
     }
 
@@ -273,11 +337,29 @@ class Transporter
                 $schemaArray = require $filename;
                 break;
             case 'json':
-                $schemaArray = json_decode(file_get_contents($filename), true);
+                $options = [];
+                if ($this->directories['table'] || $this->directories['view']) {
+                    $dirname = dirname($filename);
+                    $options['callback'] = [
+                        '!include' => function ($value) use ($dirname) {
+                            return Utility::json_decode(file_get_contents("$dirname/$value"));
+                        },
+                    ];
+                }
+                $schemaArray = Utility::json_decode(file_get_contents($filename), $options);
                 break;
             case 'yml':
             case 'yaml':
-                $schemaArray = Yaml::parse(file_get_contents($filename));
+                $options = $this->ymlOptions;
+                if ($this->directories['table'] || $this->directories['view']) {
+                    $dirname = dirname($filename);
+                    $options['callback'] = array(
+                        '!include' => function ($value) use ($dirname) {
+                            return Utility::yaml_parse(file_get_contents("$dirname/$value"), array('builtin' => true));
+                        },
+                    );
+                }
+                $schemaArray = Utility::yaml_parse(file_get_contents($filename), $options);
                 break;
         }
 
@@ -323,7 +405,7 @@ class Transporter
                 throw new \DomainException("'$ext' is not supported.");
             case 'sql':
                 $contents = file_get_contents($filename);
-                self::mb_convert_variables($to_encoding, $encoding, $contents);
+                Utility::mb_convert_variables($to_encoding, $encoding, $contents);
                 $this->connection->exec($contents);
                 return $this->explodeSql($contents);
             case 'php':
@@ -331,17 +413,17 @@ class Transporter
                 if ($rows instanceof \Closure) {
                     $rows = $rows($this->connection);
                 }
-                self::mb_convert_variables($to_encoding, $encoding, $rows);
+                Utility::mb_convert_variables($to_encoding, $encoding, $rows);
                 break;
             case 'json':
                 $contents = file_get_contents($filename);
-                self::mb_convert_variables($to_encoding, $encoding, $contents);
+                Utility::mb_convert_variables($to_encoding, $encoding, $contents);
                 $rows = json_decode($contents, true);
                 break;
             case 'yml':
             case 'yaml':
                 $contents = file_get_contents($filename);
-                self::mb_convert_variables($to_encoding, $encoding, $contents);
+                Utility::mb_convert_variables($to_encoding, $encoding, $contents);
                 $rows = Yaml::parse($contents);
                 break;
             case 'csv':
@@ -349,7 +431,7 @@ class Transporter
                 $header = array();
                 if (($handle = fopen($filename, "r")) !== false) {
                     while (($line = fgets($handle)) !== false) {
-                        self::mb_convert_variables($to_encoding, $encoding, $line);
+                        Utility::mb_convert_variables($to_encoding, $encoding, $line);
                         $data = str_getcsv($line);
                         // first row is used as CSV header
                         if (!$header) {
@@ -427,7 +509,7 @@ class Transporter
                 'platformOptions'     => array_diff_key($column->getPlatformOptions(), $ignoreColumnAttributes),
                 'customSchemaOptions' => array_diff_key($column->getCustomSchemaOptions(), $ignoreColumnAttributes),
             );
-            $array = self::array_diff_assoc($array, $this->defaultColumnAttributes);
+            $array = Utility::array_diff_exists($array, $this->defaultColumnAttributes);
             if (!in_array($array['type'], array('smallint', 'integer', 'bigint', 'decimal', 'float'), true)) {
                 unset($array['unsigned']);
             }
@@ -454,7 +536,7 @@ class Transporter
                 'flag'    => $index->getFlags(),
                 'option'  => $index->getOptions(),
             );
-            $array = self::array_diff_assoc($array, $this->defaultIndexAttributes);
+            $array = Utility::array_diff_exists($array, $this->defaultIndexAttributes);
             $entry['index'][$index->getName()] = $array;
         }
 
@@ -563,45 +645,5 @@ class Transporter
         $result[] = implode('', array_slice($chars, $last_index));
 
         return $result;
-    }
-
-    private static function array_diff_assoc($array1, $array2)
-    {
-        foreach ($array1 as $key => $val) {
-            if (array_key_exists($key, $array2) && $val === $array2[$key]) {
-                unset($array1[$key]);
-            }
-        }
-
-        return $array1;
-    }
-
-    private static function json_encode($value, $options = 0)
-    {
-        if (defined('JSON_UNESCAPED_UNICODE')) {
-            $options |= JSON_UNESCAPED_UNICODE;
-        }
-        if (defined('JSON_UNESCAPED_SLASHES')) {
-            $options |= JSON_UNESCAPED_SLASHES;
-        }
-        if (defined('JSON_PRETTY_PRINT')) {
-            $options |= JSON_PRETTY_PRINT;
-        }
-        return json_encode($value, $options);
-    }
-
-    private static function file_put_contents($filename, $data)
-    {
-        $dirname = dirname($filename);
-        is_dir($dirname) or mkdir($dirname, 0777, true);
-        return file_put_contents($filename, $data);
-    }
-
-    private static function mb_convert_variables($to_encoding, $from_encoding, &$vars)
-    {
-        if ($to_encoding === $from_encoding) {
-            return $from_encoding;
-        }
-        return mb_convert_variables($to_encoding, $from_encoding, $vars);
     }
 }
