@@ -439,11 +439,11 @@ class TransporterTest extends AbstractTestCase
             'sql'  => "INSERT INTO `hoge` (`id`, `name`, `data`) VALUES ('1', 'あいうえお', '3.14');
 ",
             'php'  => "<?php return array(
-array (
-  'id' => '1',
-  'name' => 'あいうえお',
-  'data' => '3.14',
-)
+[
+    'id'   => '1',
+    'name' => 'あいうえお',
+    'data' => '3.14',
+]
 );
 ",
             'json' => '[
@@ -503,32 +503,5 @@ array (
         $this->transporter->setYmlOption('indent', 1);
         $this->transporter->exportDDL(self::$tmpdir . '/table.yml');
         $this->assertFileContains('   PRIMARY: { column: [id, pid], primary: true, unique: true }', self::$tmpdir . '/table.yml');
-    }
-
-    /**
-     * @test
-     */
-    function mb_convert_variables()
-    {
-        $mb_convert_variables = $this->refClass->getMethod('mb_convert_variables');
-        $mb_convert_variables->setAccessible(true);
-
-        $string = 'あ';
-
-        $actual = $mb_convert_variables->invokeArgs($this->transporter, array(
-            'UTF-8',
-            'UTF-8',
-            &$string
-        ));
-        $this->assertEquals($actual, 'UTF-8');
-        $this->assertEquals('あ', $string);
-
-        $actual = $mb_convert_variables->invokeArgs($this->transporter, array(
-            'SJIS',
-            'UTF-8',
-            &$string
-        ));
-        $this->assertEquals($actual, 'UTF-8');
-        $this->assertEquals('あ', mb_convert_encoding($string, 'UTF-8', 'SJIS'));
     }
 }
