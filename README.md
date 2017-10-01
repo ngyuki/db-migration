@@ -76,25 +76,27 @@ cli-config.php で設定された connection のスキーマとレコードを�
 
 ```
 Arguments:
-  files                              Definitation files. First argument is meaned schema.
+  files                                    Definitation files. First argument is meaned schema.
 
 Options:
-      --noview                       No migration View.
-  -i, --include[=INCLUDE]            Target tables pattern (enable comma separated value) (multiple values allowed)
-  -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
-  -w, --where[=WHERE]                Where condition. (multiple values allowed)
-  -g, --ignore[=IGNORE]              Ignore column. (multiple values allowed)
-  -m, --migration[=MIGRATION]        Specify migration table name.
-      --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
-      --yml-inline[=YML-INLINE]      Specify YML inline nest level. [default: 4]
-      --yml-indent[=YML-INDENT]      Specify YML indent size. [default: 4]
-  -h, --help                         Display this help message
-  -q, --quiet                        Do not output any message
-  -V, --version                      Display this application version
-      --ansi                         Force ANSI output
-      --no-ansi                      Disable ANSI output
-  -n, --no-interaction               Do not ask any interactive question
-  -v|vv|vvv, --verbose               Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+      --noview                             No migration View.
+  -i, --include[=INCLUDE]                  Target tables pattern (enable comma separated value) (multiple values allowed)
+  -e, --exclude[=EXCLUDE]                  Except tables pattern (enable comma separated value) (multiple values allowed)
+  -m, --migration[=MIGRATION]              Specify migration directory.
+  -w, --where[=WHERE]                      Where condition. (multiple values allowed)
+  -g, --ignore[=IGNORE]                    Ignore column. (multiple values allowed)
+      --table-directory[=TABLE-DIRECTORY]  Specify separative directory name for tables.
+      --view-directory[=VIEW-DIRECTORY]    Specify separative directory name for views.
+      --csv-encoding[=CSV-ENCODING]        Specify CSV encoding. [default: "SJIS-win"]
+      --yml-inline[=YML-INLINE]            Specify YML inline nest level. [default: 4]
+      --yml-indent[=YML-INDENT]            Specify YML indent size. [default: 4]
+  -h, --help                               Display this help message
+  -q, --quiet                              Do not output any message
+  -V, --version                            Display this application version
+      --ansi                               Force ANSI output
+      --no-ansi                            Disable ANSI output
+  -n, --no-interaction                     Do not ask any interactive question
+  -v|vv|vvv, --verbose                     Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 ```
 
 files 引数でエクスポートするファイルを指定します。
@@ -144,6 +146,17 @@ DML 差分対象の WHERE 文を指定します。
 `-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
 
+#### --table-directory, view-directory
+
+テーブルとビューの出力ディレクトリを指定します。
+指定した場合、大本のスキーマファイル（第1引数）には include を示す識別子が含められ、内容としては含まれません。
+テーブル・ビューごとにファイルを出力したい場合に便利ですが、下記の制約があります。
+
+- php: 制約はありません。php ネイティブの `inhclude` を用いて出力されます
+- json: 文字列として出力し、あとからパースされます。したがって（まずあり得ないでしょうか）特殊なプレフィックス（!include）で始まるjsonファイルで誤作動する可能性があります
+- yaml: php-yaml 拡張が必要です。インストールされていない場合このオプションは無視されます
+- csv: そもそも対応していません
+
 #### --migration (-m)
 
 マイグレーションテーブル名（ディレクトリ）を指定します。
@@ -160,39 +173,41 @@ cli-config.php で設定された connection と、指定したファイルで�
 
 ```
 Arguments:
-  files                              SQL files
+  files                                    SQL files
 
 Options:
-      --target[=TARGET]              Specify target DSN (default cli-config)
-      --source[=SOURCE]              Specify source DSN (default cli-config, temporary database
-  -d, --dsn[=DSN]                    Specify destination DSN (default create temporary database) suffix based on cli-config
-  -s, --schema[=SCHEMA]              Specify destination database name (default `md5(filemtime(files))`)
-  -t, --type[=TYPE]                  Migration SQL type (ddl, dml. default both)
-      --noview                       No migration View.
-  -i, --include[=INCLUDE]            Target tables pattern (enable comma separated value) (multiple values allowed)
-  -e, --exclude[=EXCLUDE]            Except tables pattern (enable comma separated value) (multiple values allowed)
-  -w, --where[=WHERE]                Where condition. (multiple values allowed)
-  -g, --ignore[=IGNORE]              Ignore column for DML. (multiple values allowed)
-  -m, --migration[=MIGRATION]        Specify migration table name.
-      --no-insert                    Not contains INSERT DML
-      --no-delete                    Not contains DELETE DML
-      --no-update                    Not contains UPDATE DML
-      --format[=FORMAT]              Format output SQL (none, pretty, format, highlight or compress. default pretty) [default: "pretty"]
-  -o, --omit=OMIT                    Omit size for long SQL
-      --bulk-insert                  Enable bulk insert
-      --csv-encoding[=CSV-ENCODING]  Specify CSV encoding. [default: "SJIS-win"]
-  -c, --check                        Check only (Dry run. force no-interaction)
-  -f, --force                        Force continue, ignore errors
-  -r, --rebuild                      Rebuild destination database
-  -k, --keep                         Not drop destination database
-      --init                         Initialize database (Too Dangerous)
-  -h, --help                         Display this help message
-  -q, --quiet                        Do not output any message
-  -V, --version                      Display this application version
-      --ansi                         Force ANSI output
-      --no-ansi                      Disable ANSI output
-  -n, --no-interaction               Do not ask any interactive question
-  -v|vv|vvv, --verbose               Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+      --target[=TARGET]                    Specify target DSN (default cli-config)
+      --source[=SOURCE]                    Specify source DSN (default cli-config, temporary database)
+  -d, --dsn[=DSN]                          Specify destination DSN (default create temporary database) suffix based on cli-config
+  -s, --schema[=SCHEMA]                    Specify destination database name (default `md5(filemtime(files))`)
+  -t, --type[=TYPE]                        Migration SQL type (ddl, dml. default both)
+      --noview                             No migration View.
+  -i, --include[=INCLUDE]                  Target tables pattern (enable comma separated value) (multiple values allowed)
+  -e, --exclude[=EXCLUDE]                  Except tables pattern (enable comma separated value) (multiple values allowed)
+  -w, --where[=WHERE]                      Where condition. (multiple values allowed)
+  -g, --ignore[=IGNORE]                    Ignore column for DML. (multiple values allowed)
+  -m, --migration[=MIGRATION]              Specify migration directory.
+      --no-insert                          Not contains INSERT DML
+      --no-delete                          Not contains DELETE DML
+      --no-update                          Not contains UPDATE DML
+      --format[=FORMAT]                    Format output SQL (none, pretty, format, highlight or compress. default pretty) [default: "pretty"]
+  -o, --omit=OMIT                          Omit size for long SQL
+      --bulk-insert                        Enable bulk insert
+      --csv-encoding[=CSV-ENCODING]        Specify CSV encoding. [default: "SJIS-win"]
+      --table-directory[=TABLE-DIRECTORY]  Specify separative directory name for tables.
+      --view-directory[=VIEW-DIRECTORY]    Specify separative directory name for views.
+  -c, --check                              Check only (Dry run. force no-interaction)
+  -f, --force                              Force continue, ignore errors
+  -r, --rebuild                            Rebuild destination database
+  -k, --keep                               Not drop destination database
+      --init                               Initialize database (Too Dangerous)
+  -h, --help                               Display this help message
+  -q, --quiet                              Do not output any message
+  -V, --version                            Display this application version
+      --ansi                               Force ANSI output
+      --no-ansi                            Disable ANSI output
+  -n, --no-interaction                     Do not ask any interactive question
+  -v|vv|vvv, --verbose                     Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 ```
 
 #### files
@@ -280,6 +295,10 @@ DML 差分対象のカラム名を指定します。
 `-g table.column` のように指定するとそのテーブルのみで適用されます。
 `-g column` のように指定すると `column` カラムを持つ全てのテーブルで適用されます。
 識別子はクオートしても構いません。
+
+#### --table-directory, view-directory
+
+generate と同じです。テーブルとビューが格納されているディレクトリを指定します。
 
 #### --migration (-m)
 
