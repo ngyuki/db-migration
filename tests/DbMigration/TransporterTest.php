@@ -69,6 +69,9 @@ class TransporterTest extends AbstractTestCase
 
         $this->transporter = new Transporter($this->old);
         $this->refClass = new \ReflectionClass($this->transporter);
+
+        $this->transporter->setDirectory('table', null);
+        $this->transporter->setDirectory('view', null);
     }
 
     /**
@@ -439,11 +442,11 @@ class TransporterTest extends AbstractTestCase
             'sql'  => "INSERT INTO `hoge` (`id`, `name`, `data`) VALUES ('1', 'あいうえお', '3.14');
 ",
             'php'  => "<?php return array(
-array (
-  'id' => '1',
-  'name' => 'あいうえお',
-  'data' => '3.14',
-)
+[
+    'id'   => '1',
+    'name' => 'あいうえお',
+    'data' => '3.14',
+]
 );
 ",
             'json' => '[
@@ -487,6 +490,93 @@ array (
         }
     }
 
+    static function expandDataProvider()
+    {
+        return [
+            [
+                'php',
+                "<?php return
+[
+    'platform' => 'mysql',
+    'table'    => [
+        'child'  => include 'table/child.php',
+        'fuga'   => include 'table/fuga.php',
+        'hoge'   => include 'table/hoge.php',
+        'parent' => include 'table/parent.php',
+    ],
+    'view'     => [
+        'vvview' => include 'view/vvview.php',
+    ],
+];
+",
+            ],
+            [
+                'yaml',
+                "---
+platform: mysql
+table:
+  child: !include table/child.yaml
+  fuga: !include table/fuga.yaml
+  hoge: !include table/hoge.yaml
+  parent: !include table/parent.yaml
+view:
+  vvview: !include view/vvview.yaml
+...
+",
+            ],
+            [
+                'json',
+                '{
+    "platform": "mysql",
+    "table": {
+        "child": "!include: table/child.json",
+        "fuga": "!include: table/fuga.json",
+        "hoge": "!include: table/hoge.json",
+        "parent": "!include: table/parent.json"
+    },
+    "view": {
+        "vvview": "!include: view/vvview.json"
+    }
+}
+',
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider expandDataProvider
+     * @test
+     * @param $ext
+     * @param $content
+     */
+    function directory($ext, $content)
+    {
+        $this->transporter->setDirectory('table', 'table');
+        $this->transporter->setDirectory('view', 'view');
+
+        $this->transporter->exportDDL(self::$tmpdir . "/table.$ext");
+
+        $this->assertFileExists(self::$tmpdir . "/table/child.$ext");
+        $this->assertFileExists(self::$tmpdir . "/table/fuga.$ext");
+        $this->assertFileExists(self::$tmpdir . "/table/hoge.$ext");
+        $this->assertFileExists(self::$tmpdir . "/table/parent.$ext");
+        $this->assertFileExists(self::$tmpdir . "/view/vvview.$ext");
+        $this->assertStringEqualsFile(self::$tmpdir . "/table.$ext", $content);
+
+        foreach ($this->oldSchema->listTableNames() as $tname) {
+            $this->oldSchema->dropTable($tname);
+        }
+        foreach ($this->oldSchema->listViews() as $vname => $view) {
+            $this->oldSchema->dropView($vname);
+        }
+        $this->transporter->importDDL(self::$tmpdir . "/table.$ext");
+        $this->assertTrue($this->oldSchema->tablesExist('child'));
+        $this->assertTrue($this->oldSchema->tablesExist('fuga'));
+        $this->assertTrue($this->oldSchema->tablesExist('hoge'));
+        $this->assertTrue($this->oldSchema->tablesExist('parent'));
+        $this->assertArrayHasKey('vvview', $this->oldSchema->listViews());
+    }
+
     /**
      * @test
      */
@@ -503,32 +593,5 @@ array (
         $this->transporter->setYmlOption('indent', 1);
         $this->transporter->exportDDL(self::$tmpdir . '/table.yml');
         $this->assertFileContains('   PRIMARY: { column: [id, pid], primary: true, unique: true }', self::$tmpdir . '/table.yml');
-    }
-
-    /**
-     * @test
-     */
-    function mb_convert_variables()
-    {
-        $mb_convert_variables = $this->refClass->getMethod('mb_convert_variables');
-        $mb_convert_variables->setAccessible(true);
-
-        $string = 'あ';
-
-        $actual = $mb_convert_variables->invokeArgs($this->transporter, array(
-            'UTF-8',
-            'UTF-8',
-            &$string
-        ));
-        $this->assertEquals($actual, 'UTF-8');
-        $this->assertEquals('あ', $string);
-
-        $actual = $mb_convert_variables->invokeArgs($this->transporter, array(
-            'SJIS',
-            'UTF-8',
-            &$string
-        ));
-        $this->assertEquals($actual, 'UTF-8');
-        $this->assertEquals('あ', mb_convert_encoding($string, 'UTF-8', 'SJIS'));
     }
 }

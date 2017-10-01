@@ -60,6 +60,8 @@ class MigrateCommand extends AbstractCommand
             new InputOption('omit', 'o', InputOption::VALUE_REQUIRED, 'Omit size for long SQL'),
             new InputOption('bulk-insert', null, InputOption::VALUE_NONE, 'Enable bulk insert'),
             new InputOption('csv-encoding', null, InputOption::VALUE_OPTIONAL, 'Specify CSV encoding.', 'SJIS-win'),
+            new InputOption('table-directory', null, InputOption::VALUE_OPTIONAL, 'Specify separative directory name for tables.', null),
+            new InputOption('view-directory', null, InputOption::VALUE_OPTIONAL, 'Specify separative directory name for views.', null),
             new InputOption('check', 'c', InputOption::VALUE_NONE, 'Check only (Dry run. force no-interaction)'),
             new InputOption('force', 'f', InputOption::VALUE_NONE, 'Force continue, ignore errors'),
             new InputOption('rebuild', 'r', InputOption::VALUE_NONE, 'Rebuild destination database'),
@@ -288,6 +290,8 @@ EOT
                 $transporter->enableView(!$this->input->getOption('noview'));
                 $transporter->setBulkMode($this->input->getOption('bulk-insert'));
                 $transporter->setEncoding('csv', $this->input->getOption('csv-encoding'));
+                $transporter->setDirectory('table', $this->input->getOption('table-directory'));
+                $transporter->setDirectory('view', $this->input->getOption('view-directory'));
 
                 // importDDL
                 $ddlfile = array_shift($files);

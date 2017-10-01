@@ -57,7 +57,8 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
     {
         parent::setUp();
 
-        array_map('unlink', glob(self::$tmpdir . '/*'));
+        $this->rmdir_r(self::$tmpdir);
+        is_dir(self::$tmpdir) or mkdir(self::$tmpdir, 0777, true);
 
         $ref = new \ReflectionProperty('ryunosuke\\DbMigration\\Migrator', 'schemas');
         $ref->setAccessible(true);
@@ -76,6 +77,33 @@ abstract class AbstractTestCase extends \PHPUnit_Framework_TestCase
         // get schema
         $this->oldSchema = $this->old->getSchemaManager();
         $this->newSchema = $this->new->getSchemaManager();
+    }
+
+    protected function rmdir_r($dir_path = null)
+    {
+        if (!strlen($dir_path)) {
+            return false;
+        }
+        if (!file_exists($dir_path)) {
+            return true;
+        }
+        if (is_file($dir_path) or is_link($dir_path)) {
+            return @unlink($dir_path);
+        }
+
+        $dir = @scandir($dir_path);
+        if (!is_array($dir)) {
+            return false;
+        }
+
+        $dir = array_diff($dir, array('.', '..'));
+        foreach ($dir as $item) {
+            if (!$this->rmdir_r($dir_path . '/' . $item)) {
+                return false;
+            }
+        }
+
+        return @rmdir($dir_path);
     }
 
     public function tearDown()
