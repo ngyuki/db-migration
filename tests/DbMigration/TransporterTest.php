@@ -430,6 +430,27 @@ class TransporterTest extends AbstractTestCase
     /**
      * @test
      */
+    function getImplicitIndexes()
+    {
+        $method = $this->refClass->getMethod('getImplicitIndexes');
+        $method->setAccessible(true);
+
+        $table = new Table('implicit');
+        $table->addColumn('id', 'integer');
+        $table->addColumn('pid', 'integer');
+        $table->addColumn('name', 'string');
+        $table->addIndex(array('name'), 'idx_name');
+        $table->setPrimaryKey(array('id'));
+        $table->addForeignKeyConstraint('parent', array('pid'), array('id'), array(), 'fk_implicit');
+        $this->assertCount(1, $method->invoke($this->transporter, $table));
+
+        $this->assertEmpty(@$method->invoke($this->transporter, new \stdClass()));
+        $this->assertContains('is undefined', error_get_last()['message']);
+    }
+
+    /**
+     * @test
+     */
     function encoding()
     {
         $this->transporter->setEncoding('sql', 'SJIS-win');

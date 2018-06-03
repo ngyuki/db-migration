@@ -517,18 +517,15 @@ class Transporter
         }
 
         // add indexes
-        $indexes = $table->getIndexes();
+        /** @var Index[] $indexes */
+        $indexes = array_diff_key($table->getIndexes(), $this->getImplicitIndexes($table));
         uasort($indexes, function (Index $a, Index $b) {
-            if ($a->isPrimary()) {
-                return -1;
+            if ($a->isPrimary() || $b->isPrimary()) {
+                return $a->isPrimary() ? -1 : 1;
             }
             return strcmp($a->getName(), $b->getName());
         });
         foreach ($indexes as $index) {
-            // ignore implicit index
-            if ($index->hasFlag('implicit')) {
-                continue;
-            }
             $array = array(
                 'column'  => $index->getColumns(),
                 'primary' => $index->isPrimary(),
@@ -589,10 +586,8 @@ class Transporter
         }
 
         // ignore implicit index
-        foreach ($table->getIndexes() as $index) {
-            if ($index->hasFlag('implicit')) {
-                $table->dropIndex($index->getName());
-            }
+        foreach ($this->getImplicitIndexes($table) as $index) {
+            $table->dropIndex($index->getName());
         }
 
         return $table;
@@ -644,6 +639,25 @@ class Transporter
         }
         $result[] = implode('', array_slice($chars, $last_index));
 
+        return $result;
+    }
+
+    /**
+     * @param Table $table
+     * @return Index[]
+     */
+    private function getImplicitIndexes($table)
+    {
+        $result = [];
+        try {
+            $implicitIndexes = new \ReflectionProperty($table, 'implicitIndexes');
+            $implicitIndexes->setAccessible(true);
+            $result = $implicitIndexes->getValue($table);
+        }
+        catch (\ReflectionException $ex) {
+            // If it is a fatal error, no action can be taken, so convert it to Notice
+            trigger_error('Table::$implicitIndexes is undefined.', E_USER_NOTICE);
+        }
         return $result;
     }
 }

@@ -1,6 +1,10 @@
 <?php
 require __DIR__ . '/../vendor/autoload.php';
 
+if (DIRECTORY_SEPARATOR === '\\') {
+    setlocale(LC_CTYPE, 'C');
+}
+
 if (!defined('YAML_UTF8_ENCODING')) {
     define('YAML_UTF8_ENCODING', 1);
 }
