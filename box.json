@@ -1,0 +1,49 @@
+{
+  "directories": [
+    "src"
+  ],
+  "files": [
+    "vendor/autoload.php"
+  ],
+  "finder": [
+    {
+      "in": [
+        "vendor/composer",
+        "vendor/doctrine/annotations",
+        "vendor/doctrine/cache",
+        "vendor/doctrine/collections",
+        "vendor/doctrine/common",
+        "vendor/doctrine/dbal",
+        "vendor/doctrine/inflector",
+        "vendor/doctrine/lexer",
+        "vendor/jdorn/sql-formatter",
+        "vendor/psr/log",
+        "vendor/symfony/console",
+        "vendor/symfony/debug",
+        "vendor/symfony/polyfill-mbstring",
+        "vendor/symfony/yaml"
+      ],
+      "exclude": [
+        "examples",
+        "tests",
+        "Tests"
+      ],
+      "notName": [
+        "*.md",
+        "LICENSE",
+        "composer.json"
+      ]
+    }
+  ],
+  "main": "vendor/doctrine/dbal/bin/doctrine-dbal",
+  "output": "db-migration.phar",
+  "chmod": "0755",
+  "stub": true,
+  "git-commit": "git-commit",
+  "git-version": "git-version",
+  "datetime": "datetime",
+  "compression": "GZ",
+  "compactors": [
+    "Herrera\\Box\\Compactor\\Php"
+  ]
+}

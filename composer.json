@@ -27,5 +27,11 @@
     },
     "require-dev": {
         "phpunit/phpunit": "4.*"
+    },
+    "scripts": {
+        "build": [
+            "@php box.phar build -v --ansi",
+            "@php db-migration.phar --version"
+        ]
     }
 }
